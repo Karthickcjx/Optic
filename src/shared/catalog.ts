@@ -1,0 +1,36 @@
+export const catalog = {
+  pods: { label: 'Pods', kind: 'Pod', apiVersion: 'v1', namespaced: true, group: 'Workloads' },
+  deployments: { label: 'Deployments', kind: 'Deployment', apiVersion: 'apps/v1', namespaced: true, group: 'Workloads' },
+  daemonsets: { label: 'Daemon Sets', kind: 'DaemonSet', apiVersion: 'apps/v1', namespaced: true, group: 'Workloads' },
+  statefulsets: { label: 'Stateful Sets', kind: 'StatefulSet', apiVersion: 'apps/v1', namespaced: true, group: 'Workloads' },
+  replicasets: { label: 'Replica Sets', kind: 'ReplicaSet', apiVersion: 'apps/v1', namespaced: true, group: 'Workloads' },
+  replicationcontrollers: { label: 'Replication Controllers', kind: 'ReplicationController', apiVersion: 'v1', namespaced: true, group: 'Workloads' },
+  jobs: { label: 'Jobs', kind: 'Job', apiVersion: 'batch/v1', namespaced: true, group: 'Workloads' },
+  cronjobs: { label: 'Cron Jobs', kind: 'CronJob', apiVersion: 'batch/v1', namespaced: true, group: 'Workloads' },
+  configmaps: { label: 'ConfigMaps', kind: 'ConfigMap', apiVersion: 'v1', namespaced: true, group: 'Config' },
+  secrets: { label: 'Secrets', kind: 'Secret', apiVersion: 'v1', namespaced: true, group: 'Config' },
+  horizontalpodautoscalers: { label: 'Horizontal Pod Autoscalers', kind: 'HorizontalPodAutoscaler', apiVersion: 'autoscaling/v2', namespaced: true, group: 'Config' },
+  poddisruptionbudgets: { label: 'Pod Disruption Budgets', kind: 'PodDisruptionBudget', apiVersion: 'policy/v1', namespaced: true, group: 'Config' },
+  resourcequotas: { label: 'Resource Quotas', kind: 'ResourceQuota', apiVersion: 'v1', namespaced: true, group: 'Config' },
+  limitranges: { label: 'Limit Ranges', kind: 'LimitRange', apiVersion: 'v1', namespaced: true, group: 'Config' },
+  services: { label: 'Services', kind: 'Service', apiVersion: 'v1', namespaced: true, group: 'Network' },
+  endpoints: { label: 'Endpoints', kind: 'Endpoints', apiVersion: 'v1', namespaced: true, group: 'Network' },
+  ingresses: { label: 'Ingresses', kind: 'Ingress', apiVersion: 'networking.k8s.io/v1', namespaced: true, group: 'Network' },
+  networkpolicies: { label: 'Network Policies', kind: 'NetworkPolicy', apiVersion: 'networking.k8s.io/v1', namespaced: true, group: 'Network' },
+  persistentvolumeclaims: { label: 'Persistent Volume Claims', kind: 'PersistentVolumeClaim', apiVersion: 'v1', namespaced: true, group: 'Storage' },
+  persistentvolumes: { label: 'Persistent Volumes', kind: 'PersistentVolume', apiVersion: 'v1', namespaced: false, group: 'Storage' },
+  storageclasses: { label: 'Storage Classes', kind: 'StorageClass', apiVersion: 'storage.k8s.io/v1', namespaced: false, group: 'Storage' },
+  serviceaccounts: { label: 'Service Accounts', kind: 'ServiceAccount', apiVersion: 'v1', namespaced: true, group: 'Access Control' },
+  roles: { label: 'Roles', kind: 'Role', apiVersion: 'rbac.authorization.k8s.io/v1', namespaced: true, group: 'Access Control' },
+  rolebindings: { label: 'Role Bindings', kind: 'RoleBinding', apiVersion: 'rbac.authorization.k8s.io/v1', namespaced: true, group: 'Access Control' },
+  clusterroles: { label: 'Cluster Roles', kind: 'ClusterRole', apiVersion: 'rbac.authorization.k8s.io/v1', namespaced: false, group: 'Access Control' },
+  clusterrolebindings: { label: 'Cluster Role Bindings', kind: 'ClusterRoleBinding', apiVersion: 'rbac.authorization.k8s.io/v1', namespaced: false, group: 'Access Control' },
+  nodes: { label: 'Nodes', kind: 'Node', apiVersion: 'v1', namespaced: false, group: 'Cluster' },
+  namespaces: { label: 'Namespaces', kind: 'Namespace', apiVersion: 'v1', namespaced: false, group: 'Cluster' },
+  events: { label: 'Events', kind: 'Event', apiVersion: 'v1', namespaced: true, group: 'Cluster' },
+  customresourcedefinitions: { label: 'Custom Resources', kind: 'CustomResourceDefinition', apiVersion: 'apiextensions.k8s.io/v1', namespaced: false, group: 'Cluster' }
+} as const;
+export type BuiltinKind = keyof typeof catalog;
+export interface CustomType { apiVersion: string; kind: string; plural: string; namespaced: boolean }
+export type View = BuiltinKind | 'custom' | 'overview' | 'welcome' | 'settings';
+export const resourceKinds = [...Object.keys(catalog), 'custom'] as unknown as [BuiltinKind | 'custom', ...(BuiltinKind | 'custom')[]];
