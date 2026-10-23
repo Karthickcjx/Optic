@@ -12,8 +12,9 @@ export class ForwardService {
   constructor(private clusters: ClusterManager, private streams: Streams) {}
   async start(owner: WebContents, input: Requests['forward:start']['input']) {
     const { cluster } = this.clusters.get(input.clusterId);
+    const lease = this.clusters.cliConfig(input.clusterId);
     let child: ChildProcess | undefined, closed = false, timer: NodeJS.Timeout | undefined;
-    this.streams.add(input.id, { owner, clusterId: input.clusterId, dispose: () => { closed = true; clearTimeout(timer); child?.kill(); } });
+    try { this.streams.add(input.id, { owner, clusterId: input.clusterId, dispose: () => { closed = true; clearTimeout(timer); child?.kill(); lease.cleanup(); } }); } catch (error) { lease.cleanup(); throw error; }
     try {
       return await new Promise<{ localPort: number }>((resolve, reject) => {
         let ready = false, settled = false, buffer = '';
@@ -22,7 +23,7 @@ export class ForwardService {
           if (!settled) { settled = true; reject(error); }
           if (!closed) { this.streams.error(input.id, error); this.streams.end(input.id); }
         };
-        child = spawn('kubectl', forwardArgs(cluster.source, cluster.name, input), { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+        child = spawn('kubectl', forwardArgs(lease.path, cluster.name, input), { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
         timer = setTimeout(() => fail('Port-forward startup timed out. Check connectivity and pod readiness.'), 20000);
         const output = (chunk: Buffer) => {
           if (closed || ready) return;

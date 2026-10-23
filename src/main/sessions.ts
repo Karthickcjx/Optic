@@ -58,27 +58,31 @@ export class SessionService {
       });
     } catch (error) { if (!stopped) this.streams.close(id); throw error; }
   }
-  async terminal(owner: WebContents, options: Requests['terminal:open']['input']) {
+  async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand: string[] = ['/bin/sh']) {
     const { id } = options;
     let file = process.platform === 'win32' ? (process.env.COMSPEC ?? 'cmd.exe') : (process.env.SHELL ?? '/bin/sh');
     let args: string[] = [];
+    const lease = options.clusterId ? this.clusters.cliConfig(options.clusterId) : undefined;
+    const environment = { ...process.env, TERM: 'xterm-256color', ...(lease ? { KUBECONFIG: lease.path } : {}) };
     // A local terminal inherits the user's environment. Pod selection is passed as argv, never interpolated shell code.
     if (options.pod) {
       const { cluster } = this.clusters.get(options.clusterId!);
       file = 'kubectl';
-      args = ['--kubeconfig', cluster.source, '--context', cluster.name, '--namespace', options.namespace!, 'exec', '-it', options.pod];
+      args = ['--kubeconfig', lease!.path, '--context', cluster.name, '--namespace', options.namespace!, 'exec', '-it', options.pod];
       if (options.container) args.push('-c', options.container);
-      args.push('--', '/bin/sh');
+      args.push('--', ...remoteCommand);
     }
-    const worker = utilityProcess.fork(join(dirname(fileURLToPath(import.meta.url)), 'pty-worker.js'), [], { serviceName: 'Optic terminal', stdio: 'pipe' });
+    let worker: ReturnType<typeof utilityProcess.fork>;
+    try { worker = utilityProcess.fork(join(dirname(fileURLToPath(import.meta.url)), 'pty-worker.js'), [], { serviceName: 'Optic terminal', stdio: 'pipe' }); }
+    catch (error) { lease?.cleanup(); onClosed?.(); throw error; }
     let closed = false;
     const post = (value: unknown) => { if (!closed) worker.postMessage(value); };
     try {
       this.streams.add(id, { owner, clusterId: options.clusterId,
-        dispose: () => { if (closed) return; post({ type: 'close' }); closed = true; setTimeout(() => worker.kill(), 500).unref(); },
+        dispose: () => { if (closed) return; post({ type: 'close' }); closed = true; lease?.cleanup(); onClosed?.(); setTimeout(() => worker.kill(), 500).unref(); },
         write: data => post({ type: 'write', data }), resize: (cols, rows) => post({ type: 'resize', cols, rows }), ack: seq => post({ type: 'ack', seq })
       });
-    } catch (error) { worker.kill(); throw error; }
+    } catch (error) { worker.kill(); lease?.cleanup(); onClosed?.(); throw error; }
     // Drain diagnostic pipes without forwarding potentially sensitive process environment details.
     worker.stdout?.resume(); worker.stderr?.resume();
     await new Promise<void>((resolve, reject) => {
@@ -95,7 +99,7 @@ export class SessionService {
         }
       });
       worker.on('exit', code => { clearTimeout(timeout); if (!ready) reject(new AppError('TERMINAL_FAILED', 'Terminal helper exited before startup.')); if (!closed) this.streams.end(id, code); });
-      worker.on('spawn', () => post({ type: 'open', file, args, cwd: homedir(), env: { ...process.env, TERM: 'xterm-256color' }, cols: options.cols, rows: options.rows }));
+      worker.on('spawn', () => post({ type: 'open', file, args, cwd: lease?.settings.terminalCwd || homedir(), env: environment, cols: options.cols, rows: options.rows }));
     });
   }
 }

@@ -25,7 +25,7 @@ function TerminalPane({ tab, visible }: { tab: DockTab; visible: boolean }) {
     const input = terminal.onData(data => { if (ready) void request('terminal:write', { id, data }).catch(e => setError(e.message)); });
     const resize = terminal.onResize(({ cols, rows }) => { if (ready) void request('terminal:resize', { id, cols, rows }).catch(() => {}); });
     const observer = new ResizeObserver(() => { if (host.current?.clientWidth) fit.fit(); }); observer.observe(host.current!);
-    void request('terminal:open', { ...tab.options as TerminalOptions, id, cols: terminal.cols, rows: terminal.rows }).then(() => { if (!active) { closeStream(id); return; } ready = true; fit.fit(); terminal.focus(); }).catch(e => { if (active) setError(e.message); });
+    void ((tab.options as TerminalOptions).node ? request('nodeshell:open', { clusterId: (tab.options as TerminalOptions).clusterId!, node: (tab.options as TerminalOptions).node!, id, cols: terminal.cols, rows: terminal.rows }) : request('terminal:open', { ...tab.options as TerminalOptions, id, cols: terminal.cols, rows: terminal.rows })).then(() => { if (!active) { closeStream(id); return; } ready = true; fit.fit(); terminal.focus(); }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; unsubscribe(); observer.disconnect(); input.dispose(); resize.dispose(); closeStream(id); terminal.dispose(); };
   }, [tab]);
   useEffect(() => { if (visible) requestAnimationFrame(() => { try { fitRef.current?.fit(); } catch {} }); }, [visible]);

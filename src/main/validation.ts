@@ -1,3 +1,4 @@
+import { clusterSettingsSchema } from './cluster-settings';
 import { z } from 'zod';
 import { resourceKinds, type Requests } from '../shared/protocol';
 const text = z.string().min(1).max(1024);
@@ -7,6 +8,13 @@ const custom = z.object({ apiVersion: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[
 const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional() });
 const target = scope.extend({ name });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'settings:get': z.object({ clusterId: text }), 'settings:save': z.object({ clusterId: text, settings: clusterSettingsSchema }),
+  'settings:directory': z.undefined(), 'settings:reveal': z.object({ clusterId: text }),
+  'clusters:connect': z.object({ clusterId: text }), 'clusters:disconnect': z.object({ clusterId: text }),
+  'cost:read': z.object({ clusterId: text }), 'monitoring:status': z.object({ clusterId: text }),
+  'monitoring:version': z.object({ component: z.enum(['prometheus', 'kube-state-metrics', 'prometheus-node-exporter']) }),
+  'monitoring:apply': z.object({ clusterId: text, changes: z.array(z.object({ component: z.enum(['prometheus', 'kube-state-metrics', 'prometheus-node-exporter']), action: z.enum(['install', 'uninstall']), version: z.string().regex(/^(?:[0-9]+\.[0-9]+\.[0-9]+)?$/) }).refine(v => v.action !== 'install' || !!v.version)).min(1).max(3) }),
+  'nodeshell:open': z.object({ clusterId: text, node: name, id, cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }),
   'clusters:remove': z.object({ clusterId: text }),
   'forward:start': z.object({ id, clusterId: text, namespace: name, kind: z.enum(['pods', 'services']), name, localPort: z.number().int().min(0).max(65535), remotePort: z.number().int().min(1).max(65535) }),
   'clusters:import': z.undefined(), 'metrics:read': z.object({ clusterId: text }),

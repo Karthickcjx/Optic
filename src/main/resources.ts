@@ -1,3 +1,4 @@
+import { Providers } from './providers';
 import { Watch } from '@kubernetes/client-node';
 import { parse, stringify } from 'yaml';
 import { z } from 'zod';
@@ -119,7 +120,12 @@ export class ResourceService {
     return { name: info.metadata.name, kind: info.kind, namespace: descriptor.namespaced ? ns : undefined };
   }
   async metrics(clusterId: string) {
+    const settings = this.clusters.settings(clusterId);
+    if (settings.metricsSource === 'none') return { nodes: [], pods: [], source: 'none', warning: 'Metrics are disabled for this cluster.' };
+    const providers = new Providers(this.clusters);
+    if (settings.metricsSource === 'prometheus') return providers.prometheus(clusterId);
     const result = await Promise.allSettled(['/apis/metrics.k8s.io/v1beta1/nodes', '/apis/metrics.k8s.io/v1beta1/pods'].map(path => kubeJson<{ items: Resource[] }>(this.config(clusterId), path)));
-    return { nodes: result[0].status === 'fulfilled' ? result[0].value.items : [], pods: result[1].status === 'fulfilled' ? result[1].value.items : [], warning: result.some(r => r.status === 'rejected') ? 'Live CPU and memory metrics require metrics-server and permission to read metrics.k8s.io.' : undefined };
+    if (settings.metricsSource === 'automatic' && result[0].status === 'rejected') { try { return await providers.prometheus(clusterId); } catch {} }
+    return { source: 'metrics-server', nodes: result[0].status === 'fulfilled' ? result[0].value.items : [], pods: result[1].status === 'fulfilled' ? result[1].value.items : [], warning: result.some(r => r.status === 'rejected') ? 'Live CPU and memory metrics require metrics-server and permission to read metrics.k8s.io.' : undefined };
   }
 }

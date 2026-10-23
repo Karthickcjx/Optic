@@ -32,7 +32,7 @@ npm run package
 
 The smoke test uses a local fake Kubernetes API and an isolated temporary kubeconfig; it never needs or mutates a real cluster. It launches the actual Electron build and native PTY. Screenshot output is written to `artifacts/dashboard.png` and `artifacts/overview.png` (ignored by Git).
 
-Verified on Windows x64: TypeScript/production build, all 14 unit tests, Electron smoke test and unpacked application build. The October 23 rebuilt executable was blocked at launch by this machine's organizational Device Guard policy, so its packaged runtime test could not complete. The source build passes through the development Electron runtime; use `npm run dev` for that workflow. The smoke test includes metrics, tabs, search, scaling, restart, cordon, manifest dry-run/apply and expired-watch recovery and verifies that delete is not sent before confirmation. Live-cluster interoperability and macOS/Linux packages have not been verified.
+Verified on Windows x64: TypeScript/production build, all 27 unit tests, Electron smoke test and unpacked application build. The October 23 rebuilt executable was blocked at launch by this machine's organizational Device Guard policy, so its packaged runtime test could not complete. The source build passes through the development Electron runtime; use `npm run dev` for that workflow. The smoke test includes metrics, tabs, search, scaling, restart, cordon, manifest dry-run/apply and expired-watch recovery and verifies that delete is not sent before confirmation. Live-cluster interoperability and macOS/Linux packages have not been verified.
 
 To test an unpacked Windows build in PowerShell:
 
@@ -55,7 +55,7 @@ At initial validation, `npm audit --omit=dev` reported zero vulnerabilities. The
 - `tests`: boundary tests and Electron integration smoke test.
 - [ARCH_SPEC.md](ARCH_SPEC.md): evidence boundary, architecture, complete application IPC matrix and limitations.
 
-The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards, extension hosting and Helm are not implemented. Cluster credentials remain in main; Secret values are not exposed in the UI. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
+The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards, extension hosting and a general-purpose Helm release manager are not implemented. The cluster settings page supports a limited, explicit monitoring-stack Helm workflow. Cluster credentials remain in main; Secret values are not exposed in the UI. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
 
 MIT licensed. This project contains no proprietary application source or branding.
 
@@ -63,8 +63,8 @@ MIT licensed. This project contains no proprietary application source or brandin
 
 Right-click a cluster in the Navigator, or use its three-dot button:
 
-- **Connect** checks API reachability and opens the overview.
-- **Show Cluster Settings** displays the source/context/server/default namespace and tests connectivity. Connection fields remain kubeconfig-managed.
+- **Connect / Disconnect** checks API reachability or closes the selected cluster's watches, logs, terminals and forwards.
+- **Show Cluster Settings** opens a cluster-scoped workspace tab with General, Proxy, Terminal, Namespaces, Metrics, monitoring components, Cost and Node Shell sections.
 - **Add to Hotbar** pins the cluster to the activity rail; use Remove from Hotbar to unpin.
 - **Appearance** saves a local display name and icon color.
 - **Remove from Kubeconfig** requires confirmation, creates a credential-bearing backup alongside the original, removes only the chosen context, clears current-context if needed, and closes sessions belonging to that context. Shared users and cluster records are preserved.
@@ -76,3 +76,17 @@ Log tabs expose **Reconnect logs** and **Previous container**. Init and ephemera
 The renderer includes a recovery boundary; manifest inputs are locked during validation/apply to prevent validation races. CI configuration runs Windows unit tests, the isolated Electron smoke suite, and packaging. CI itself must run in the repository host before being treated as verified.
 
 Production rollout still requires live-cluster/RBAC/auth-provider testing, load and long-running recovery testing, and an organization-approved signed build. No real kubeconfig or cluster was modified by automated verification.
+
+## Cluster settings
+
+Settings persist per kubeconfig/context in the application profile. Saving settings closes that cluster's active sessions so new connections use the saved configuration; the original kubeconfig is unchanged. General includes display name/color, connection testing and revealing the kubeconfig file. Proxy accepts an HTTP(S) endpoint without embedded credentials and applies to SDK requests and generated CLI configurations. Cluster terminals use the saved working directory and default namespace. Manual namespace entries avoid requiring namespace-list RBAC.
+
+Metrics supports automatic selection (metrics-server first), explicit metrics-server, Prometheus via the authenticated Kubernetes Service proxy, or disabled. Prometheus supplies current aggregate/node CPU and memory samples, not historical queries or per-workload dashboards. Visibility preferences apply where a corresponding metrics view exists; additional category toggles persist for future views.
+
+Monitoring management requires Helm on PATH. It manages only Optic-owned Prometheus, kube-state-metrics and node-exporter releases in `optic-monitoring`. Selecting Install/upgrade automatically fills the latest stable chart version directly from the public chart repository (no Helm needed for lookup). The version remains editable and is pinned at review/confirmation; lookup failures allow retry or manual entry. Uninstall is also confirmed. It does not adopt existing releases. Sources: [Prometheus community charts](https://github.com/prometheus-community/helm-charts/tree/main/charts).
+
+Cost supports an existing OpenCost/Kubecost Service allocation API, a uniform user-entered USD/node-hour estimate, or disabled. Estimates use the current node count over 24 hours and are not billing data. Provider discovery can be replaced with an explicit Service endpoint. API reference: [OpenCost allocation examples](https://opencost.io/docs/integrations/api-examples/).
+
+Node details offer a confirmed privileged node shell using the saved image and optional pull secret. It creates a temporary pod in `kube-system`, enters the host namespaces with `nsenter`, and deletes the helper with a UID precondition on terminal closure. The image must provide `sleep` and `nsenter`; admission policy and RBAC must permit this operation. A one-hour active deadline bounds helper execution after a crash, but a stopped helper pod may still require removal.
+
+Settings validation/persistence, isolated CLI configuration, provider responses, node-shell lifecycle and Helm argument construction are tested. The Electron smoke test exercises settings navigation/saving, namespace restrictions, disabled metrics, cost estimates and disconnect/reconnect cleanup. Live proxy traversal, Helm reconciliation and privileged node-shell acceptance have not been run against a real cluster. Settings UI screenshot: `artifacts/cluster-settings.png`.

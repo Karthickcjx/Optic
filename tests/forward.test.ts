@@ -20,7 +20,7 @@ it('resolves only after readiness and kills the process when its owning context 
   const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn() });
   vi.mocked(spawn).mockReturnValue(child as any);
   const streams = new Streams();
-  const service = new ForwardService({ get: () => ({ cluster: { source: 'config', name: 'context' } }) } as any, streams);
+  const service = new ForwardService({ cliConfig: () => ({ path: 'temporary-config', cleanup: vi.fn() }), get: () => ({ cluster: { source: 'config', name: 'context' } }) } as any, streams);
   const pending = service.start(owner, input);
   child.stdout.write('Forwarding from 127.0.0.1:'); child.stdout.write('49123 -> 8080\n');
   await expect(pending).resolves.toEqual({ localPort: 49123 });
@@ -32,7 +32,7 @@ it('reports missing kubectl and releases the stream slot', async () => {
   const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn() });
   vi.mocked(spawn).mockReturnValue(child as any);
   const streams = new Streams();
-  const service = new ForwardService({ get: () => ({ cluster: { source: 'config', name: 'context' } }) } as any, streams);
+  const service = new ForwardService({ cliConfig: () => ({ path: 'temporary-config', cleanup: vi.fn() }), get: () => ({ cluster: { source: 'config', name: 'context' } }) } as any, streams);
   const pending = service.start(owner, input); child.emit('error', new Error('ENOENT'));
   await expect(pending).rejects.toThrow('Install kubectl');
   expect(() => streams.get(input.id, owner)).toThrow();

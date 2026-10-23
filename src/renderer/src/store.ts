@@ -1,9 +1,13 @@
+import type { ClusterSettings } from '../../shared/cluster-settings';
 import { create } from 'zustand';
 import { catalog, type CustomType, type View } from '../../shared/catalog';
 import type { Cluster, PodTarget, Resource, ResourceKind, Requests, TerminalOptions } from '../../shared/protocol';
 export interface DockTab { id: string; type: 'terminal' | 'logs' | 'forward'; title: string; options: TerminalOptions | PodTarget | Omit<Requests['forward:start']['input'], 'id'> }
 export interface WorkspaceTab { id: string; view: View; clusterId: string; namespace: string; custom?: CustomType }
 interface State {
+  clusterSettings: Record<string, ClusterSettings>; revision: number;
+  setClusterSettings: (id: string, settings: ClusterSettings, resetSessions?: boolean) => void;
+  setConnected: (id: string, connected: boolean) => void;
   preferences: Record<string, { pinned?: boolean; label?: string; color?: string }>;
   setPreference: (id: string, value: { pinned?: boolean; label?: string; color?: string }) => void;
   clusters: Cluster[]; clusterId: string; namespace: string; kind: ResourceKind; view: View; custom?: CustomType; selected?: Resource;
@@ -18,11 +22,14 @@ const welcome: WorkspaceTab = { id: 'welcome', view: 'welcome', clusterId: '', n
 export function pageTitle(page: WorkspaceTab, clusters: Cluster[]) {
   if (page.view === 'welcome') return 'Welcome';
   if (page.view === 'settings') return 'Preferences';
-  const title = page.view === 'overview' ? 'Cluster Overview' : page.view === 'custom' ? page.custom?.kind ?? 'Custom Resources' : catalog[page.view].label;
+  const title = page.view === 'cluster-settings' ? 'Cluster Settings' : page.view === 'overview' ? 'Cluster Overview' : page.view === 'custom' ? page.custom?.kind ?? 'Custom Resources' : catalog[page.view].label;
   return `${title} — ${clusters.find(c => c.id === page.clusterId)?.name ?? 'Cluster'}`;
 }
 function readPreferences(): State['preferences'] { try { const saved = JSON.parse(localStorage.getItem('cluster-preferences') ?? '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; } catch { return {}; } }
 export const useStore = create<State>((set, get) => ({
+  clusterSettings: {}, revision: 0,
+  setClusterSettings: (id, settings, resetSessions = false) => { set(s => ({ clusterSettings: { ...s.clusterSettings, [id]: settings }, revision: s.revision + (resetSessions ? 1 : 0), tabs: resetSessions ? s.tabs.filter(t => t.options.clusterId !== id) : s.tabs })); get().setPreference(id, { label: settings.displayName, color: settings.color }); },
+  setConnected: (id, connected) => set(s => ({ clusters: s.clusters.map(c => c.id === id ? { ...c, connected } : c), revision: s.revision + 1, tabs: connected ? s.tabs : s.tabs.filter(t => t.options.clusterId !== id) })),
   preferences: readPreferences(), setPreference: (id, value) => { const preferences = { ...get().preferences, [id]: { ...get().preferences[id], ...value } }; set({ preferences }); try { localStorage.setItem('cluster-preferences', JSON.stringify(preferences)); } catch {} },
   clusters: [], clusterId: '', namespace: '', kind: 'pods', view: 'welcome', pages: [welcome], activePage: 'welcome', tabs: [], dockCollapsed: false,
   setClusters: clusters => { const state = get(); let pages = state.pages.filter(p => !p.clusterId || clusters.some(c => c.id === p.clusterId)); if (!pages.length) pages = [welcome]; set({ clusters, clusterId: clusters.some(c => c.id === state.clusterId) ? state.clusterId : clusters[0]?.id ?? '', pages }); if (!pages.some(p => p.id === state.activePage)) get().activatePage(pages[0].id); },
@@ -33,7 +40,7 @@ export const useStore = create<State>((set, get) => ({
     const global = ['welcome', 'settings'].includes(view); const context = global ? '' : clusterId;
     const id = `${view}:${context}:${custom?.apiVersion ?? ''}:${custom?.plural ?? ''}`;
     const state = get(); const found = view === 'welcome' ? state.pages.find(p => p.view === 'welcome') : state.pages.find(p => p.id === id);
-    const page = found ?? { id, view, clusterId: context, namespace: '', custom };
+    const page = found ?? { id, view, clusterId: context, namespace: state.clusterSettings[context]?.accessibleNamespaces[0] ?? '', custom };
     set({ pages: found ? state.pages : [...state.pages, page] }); get().activatePage(page.id);
   },
   activatePage: id => {
