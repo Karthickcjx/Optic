@@ -1,4 +1,4 @@
-# Cluster Workbench architecture
+# Optic architecture
 
 Status: expanded desktop workspace, October 23, 2026. Independent TypeScript implementation; no target source, assets, tokens, or closed-source branding are included.
 

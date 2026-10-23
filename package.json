@@ -1,5 +1,5 @@
 {
-  "name": "cluster-workbench",
+  "name": "optic",
   "version": "0.1.0",
   "private": true,
   "description": "An independent Kubernetes desktop workbench",
@@ -47,7 +47,7 @@
   },
   "build": {
     "appId": "org.clusterworkbench.desktop",
-    "productName": "Cluster Workbench",
+    "productName": "Optic",
     "npmRebuild": false,
     "files": [
       "out/**/*",
@@ -60,14 +60,27 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "resources/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "resources/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Development"
-    }
+      "category": "Development",
+      "icon": "resources/logo.png"
+    },
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": [
+          "logo.png",
+          "icon.ico"
+        ]
+      }
+    ]
   }
 }

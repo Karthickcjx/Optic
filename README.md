@@ -1,4 +1,4 @@
-# Cluster Workbench
+# Optic
 
 An independent Kubernetes desktop workspace built with Electron, TypeScript, React, Zustand and Tailwind. Includes live resource tables, YAML details/editing, pod events, log streams and tabbed native terminals.
 
@@ -37,7 +37,7 @@ Verified on Windows x64: TypeScript/production build, all 14 unit tests, Electro
 To test an unpacked Windows build in PowerShell:
 
 ```powershell
-$env:WORKBENCH_TEST_EXECUTABLE = "$PWD/release/win-unpacked/Cluster Workbench.exe"
+$env:WORKBENCH_TEST_EXECUTABLE = "$PWD/release/win-unpacked/Optic.exe"
 node tests/smoke.mjs
 Remove-Item Env:WORKBENCH_TEST_EXECUTABLE
 ```

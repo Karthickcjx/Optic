@@ -70,7 +70,7 @@ export class SessionService {
       if (options.container) args.push('-c', options.container);
       args.push('--', '/bin/sh');
     }
-    const worker = utilityProcess.fork(join(dirname(fileURLToPath(import.meta.url)), 'pty-worker.js'), [], { serviceName: 'Workbench terminal', stdio: 'pipe' });
+    const worker = utilityProcess.fork(join(dirname(fileURLToPath(import.meta.url)), 'pty-worker.js'), [], { serviceName: 'Optic terminal', stdio: 'pipe' });
     let closed = false;
     const post = (value: unknown) => { if (!closed) worker.postMessage(value); };
     try {
