@@ -33,6 +33,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'nodeshell:open': (input, owner) => nodeShell.open(owner, input),
     'clusters:remove': input => { if (monitoring.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the monitoring operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
     'forward:start': (input, owner) => forwards.start(owner, input),
+    'clusters:import-clipboard': input => clusters.importClipboard(input.yaml),
     'clusters:import': async () => { const result = await dialog.showOpenDialog({ title: 'Add kubeconfig files', properties: ['openFile', 'multiSelections'] }); return result.canceled ? clusters.discover() : clusters.addPaths(result.filePaths); },
     'metrics:read': input => resources.metrics(input.clusterId),
     'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun),

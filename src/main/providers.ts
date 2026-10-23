@@ -23,7 +23,7 @@ export class Providers {
           if (response.status !== 'success' || !Array.isArray(response.data?.result)) throw new Error('Invalid Prometheus response');
           return response.data.result as { metric: Record<string, string>; value: [number, string] }[];
         };
-        const [cpu, memory] = await Promise.all([query('sum by (node) (rate(container_cpu_usage_seconds_total{container!="",container!="POD"}[5m]))'), query('sum by (node) (container_memory_working_set_bytes{container!="",container!="POD"})')]);
+        const [cpu, memory] = await Promise.all([query('sum by (node, instance) (rate(container_cpu_usage_seconds_total{container!="",container!="POD"}[5m]))'), query('sum by (node, instance) (container_memory_working_set_bytes{container!="",container!="POD"})')]);
         if (!cpu.length || !memory.length) continue;
         const nodes = new Map<string, Resource>();
         for (const [key, series] of [['cpu', cpu], ['memory', memory]] as const) for (const sample of series) {

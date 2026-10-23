@@ -104,6 +104,7 @@ Common types:
 | `nodeshell:open` | {clusterId,node,id,cols,rows} | void; privileged helper pod then managed PTY |
 | `clusters:remove` | {clusterId} | {clusters,warnings,backup}; backed-up context-only edit, closes matching sessions |
 | `forward:start` | {id,clusterId,namespace,kind:pods/services,name,localPort,remotePort} | {localPort}; loopback kubectl listener; lifetime managed by stream:close |
+| `clusters:import-clipboard` | {yaml} | {clusters,warnings}; validates submitted editor text and persists a private profile kubeconfig |
 | `clusters:import` | undefined | Native file picker; persisted source references; {clusters,warnings} |
 | `metrics:read` | {clusterId} | {nodes,pods,warning?,source?}; selected metrics provider |
 | `resources:apply` | {clusterId,namespace?,yaml,dryRun} | {name,kind,namespace?}; discovery + server-side apply |

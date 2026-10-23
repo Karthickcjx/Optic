@@ -17,7 +17,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'nodeshell:open': z.object({ clusterId: text, node: name, id, cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }),
   'clusters:remove': z.object({ clusterId: text }),
   'forward:start': z.object({ id, clusterId: text, namespace: name, kind: z.enum(['pods', 'services']), name, localPort: z.number().int().min(0).max(65535), remotePort: z.number().int().min(1).max(65535) }),
-  'clusters:import': z.undefined(), 'metrics:read': z.object({ clusterId: text }),
+  'clusters:import': z.undefined(), 'clusters:import-clipboard': z.object({ yaml: z.string().min(1).max(8_000_000) }), 'metrics:read': z.object({ clusterId: text }),
   'resources:apply': z.object({ clusterId: text, namespace: name.optional(), yaml: z.string().min(1).max(2_000_000), dryRun: z.boolean() }),
   'resources:scale': target.extend({ replicas: z.number().int().min(0).max(10000) }),
   'nodes:cordon': z.object({ clusterId: text, name, unschedulable: z.boolean() }),

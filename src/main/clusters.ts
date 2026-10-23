@@ -19,6 +19,31 @@ export class ClusterManager {
     this.preferences = new ClusterSettingsStore(settingsPath ? join(dirname(settingsPath), 'cluster-settings.json') : undefined);
     if (settingsPath && existsSync(settingsPath)) { try { const value = JSON.parse(readFileSync(settingsPath, 'utf8')); if (Array.isArray(value)) this.imported = value.filter(p => typeof p === 'string'); } catch {} }
   }
+  importClipboard(source: string) {
+    if (!source.trim()) throw new AppError('INVALID_CONFIG', 'The clipboard is empty. Copy a kubeconfig first.');
+    if (Buffer.byteLength(source, 'utf8') > 8_000_000) throw new AppError('INVALID_CONFIG', 'Clipboard kubeconfig exceeds the 8 MB limit.');
+    const config = new KubeConfig();
+    try {
+      const document = parseDocument(source);
+      if (document.errors.length || document.get('kind') !== 'Config' || document.get('apiVersion') !== 'v1') throw new Error();
+      config.loadFromString(source);
+      if (!config.getContexts().length) throw new Error();
+      for (const context of config.getContexts()) {
+        const cluster = config.getCluster(context.cluster);
+        if (!cluster || !/^https?:\/\//.test(cluster.server) || (context.user && !config.getUser(context.user))) throw new Error();
+      }
+    } catch { throw new AppError('INVALID_CONFIG', 'Clipboard does not contain a valid v1 kubeconfig with usable context references.'); }
+    const files = [...config.getClusters().map(c => c.caFile), ...config.getUsers().flatMap(u => [u.certFile, u.keyFile])].filter(Boolean) as string[];
+    if (files.some(path => !isAbsolute(path))) throw new AppError('INVALID_CONFIG', 'Clipboard kubeconfigs need embedded certificates or absolute certificate/key paths. Use filesystem import for relative paths.');
+    if (!this.settingsPath) throw new AppError('INVALID_CONFIG', 'The application profile is unavailable.');
+    const directory = join(dirname(this.settingsPath), 'kubeconfigs');
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    let path = join(directory, `clipboard-${createHash('sha256').update(source).digest('hex')}.yaml`);
+    if (existsSync(path) && readFileSync(path, 'utf8') !== source) path = join(directory, `clipboard-${randomUUID()}.yaml`);
+    const created = !existsSync(path);
+    if (created) writeFileSync(path, source, { mode: 0o600, flag: 'wx' });
+    try { return this.addPaths([path]); } catch (error) { if (created) unlinkSync(path); throw error; }
+  }
   addPaths(paths: string[]) {
     for (const path of paths) { const config = new KubeConfig(); config.loadFromFile(path); if (!config.getContexts().length) throw new AppError('INVALID_CONFIG', 'The selected file has no Kubernetes contexts.'); }
     this.imported = [...new Set([...this.imported, ...paths])];

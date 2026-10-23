@@ -6,7 +6,7 @@ import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'workbench-smoke-'));
 const requests = [], sockets = new Set(), watchers = new Set();
-const pod = { apiVersion: 'v1', kind: 'Pod', metadata: { uid: 'pod-1', name: 'api-gateway', namespace: 'default', resourceVersion: '10', creationTimestamp: new Date(Date.now() - 3600000).toISOString(), labels: { app: 'gateway', environment: 'test' } }, spec: { containers: [{ name: 'server', image: 'example/gateway:1.0' }] }, status: { phase: 'Running' } };
+const pod = { apiVersion: 'v1', kind: 'Pod', metadata: { uid: 'pod-1', name: 'api-gateway', namespace: 'default', resourceVersion: '10', creationTimestamp: new Date(Date.now() - 3600000).toISOString(), labels: { app: 'gateway', environment: 'test' } }, spec: { nodeName: 'worker-1', containers: [{ name: 'server', image: 'example/gateway:1.0' }] }, status: { phase: 'Running' } };
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost'); requests.push({ method: req.method, path: url.pathname, query: url.search });
   res.setHeader('Content-Type', 'application/json');
@@ -36,6 +36,20 @@ try {
   await page.getByRole('button', { name: 'Pods', exact: true }).click();
   await expect(page.getByText('api-gateway', { exact: true })).toBeVisible({ timeout: 20000 });
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  await page.getByTitle('Add kubeconfig', { exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add kubeconfig', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add kubeconfig from filesystem', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByTitle('Add kubeconfig', { exact: true }).click();
+  await page.getByRole('button', { name: 'Add kubeconfig from clipboard', exact: true }).click();
+  const pasteDialog = page.getByRole('dialog', { name: 'Add Clusters from Kubeconfig', exact: true });
+  await expect(pasteDialog).toBeVisible();
+  await expect(pasteDialog.getByRole('button', { name: 'Add Clusters', exact: true })).toBeDisabled();
+  await page.getByLabel('Kubeconfig YAML', { exact: true }).fill('not a kubeconfig');
+  await pasteDialog.getByRole('button', { name: 'Add Clusters', exact: true }).click();
+  await expect(pasteDialog.getByRole('alert')).toContainText('valid v1 kubeconfig');
+  await expect(page.getByLabel('Kubeconfig YAML', { exact: true })).toHaveValue('not a kubeconfig');
+  await pasteDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   const prefs = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
   assert.equal(prefs.contextIsolation, true); assert.equal(prefs.nodeIntegration, false); assert.equal(prefs.sandbox, true);
   await page.getByText('api-gateway', { exact: true }).click();
@@ -95,9 +109,24 @@ try {
   await expect.poll(() => historyChart.locator('circle').count()).toBeGreaterThan(sampleCount);
   await expect(historyChart.locator('circle').first()).toHaveAttribute('cy', firstPoint);
   await expect(historyChart.locator('polyline')).toHaveAttribute('points', /\S+,\S+ \S+,\S+/);
+  await expect(historyChart.locator('text')).toHaveCount(10);
+  await page.getByLabel('Monitor nodes', { exact: true }).selectOption('masters');
+  await expect(page.getByRole('img', { name: 'CPU: unavailable used', exact: true })).toBeVisible();
+  await expect(page.getByText('No nodes match this selection.', { exact: true })).toBeVisible();
+  await expect(historyChart.locator('circle')).toHaveCount(0);
+  await page.getByLabel('Monitor nodes', { exact: true }).selectOption('workers');
+  await expect(page.getByRole('img', { name: 'CPU: 0.50 used', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'PODS: 1 used', exact: true })).toBeVisible();
+  await page.getByLabel('Metrics time range', { exact: true }).selectOption('60');
+  await page.getByRole('button', { name: 'Absolute units', exact: true }).click();
+  await expect(historyChart).toContainText('100.0%');
+  await page.getByLabel('Monitor nodes', { exact: true }).selectOption('node:worker-1');
+  await expect(page.getByRole('img', { name: 'CPU: 0.50 used', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/overview.png' });
   await page.locator('.navigator').getByRole('button', { name: 'Deployments', exact: true }).click();
   await page.getByText('web', { exact: true }).click();
+  await expect(page.locator('.details')).toContainText('Ready replicas');
+  await page.screenshot({ path: 'artifacts/resource-details.png' });
   await page.getByRole('button', { name: 'Scale', exact: true }).click();
   await page.getByLabel('Replicas', { exact: true }).fill('3');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
@@ -192,6 +221,26 @@ try {
   await expect(page.locator('.backup-path')).toBeVisible();
   await page.getByTitle('Close cluster settings').click();
   await expect(page.getByText('No contexts found.', { exact: false })).toBeVisible();
+  await page.getByTitle('Add kubeconfig', { exact: true }).click();
+  await page.getByRole('button', { name: 'Add kubeconfig from clipboard', exact: true }).click();
+  const validPastedConfig = `apiVersion: v1
+kind: Config
+clusters:
+- name: test
+  cluster: {server: "http://127.0.0.1:${server.address().port}"}
+users:
+- name: test
+  user: {}
+contexts:
+- name: pasted-context
+  context: {cluster: test, user: test}
+current-context: pasted-context
+`;
+  await page.getByLabel('Kubeconfig YAML', { exact: true }).fill(validPastedConfig);
+  await page.screenshot({ path: 'artifacts/kubeconfig-paste.png' });
+  await page.getByRole('button', { name: 'Add Clusters', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add Clusters from Kubeconfig', exact: true })).toHaveCount(0);
+  await expect(page.getByTitle('Cluster actions: pasted-context', { exact: true })).toBeVisible();
   assert.deepEqual(errors, []);
   console.log('PASS: cluster context menu, hotbar, appearance, connection settings, connect and backed-up context removal.');
   console.log('PASS: overview metrics, workspace tabs, search, scale, restart, cordon, manifest dry-run/apply.');
