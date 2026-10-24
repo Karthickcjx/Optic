@@ -1,3 +1,4 @@
+import { ResourceMetrics } from '../resource-metrics';
 import { HelmService } from '../helm';
 import { Providers } from '../providers';
 import { Monitoring } from '../monitoring';
@@ -15,6 +16,7 @@ import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  const resourceMetrics = new ResourceMetrics(clusters, resources);
   const streams = new Streams(); const sessions = new SessionService(clusters, streams);
   const providers = new Providers(clusters), monitoring = new Monitoring(clusters), nodeShell = new NodeShell(clusters, streams, sessions);
   const helm = new HelmService(clusters, join(app.getPath('userData'), 'helm-repositories.json'), id => monitoring.isBusy(id));
@@ -50,6 +52,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'forward:start': (input, owner) => forwards.start(owner, input),
     'clusters:import-clipboard': input => clusters.importClipboard(input.yaml),
     'clusters:import': async () => { const result = await dialog.showOpenDialog({ title: 'Add kubeconfig files', properties: ['openFile', 'multiSelections'] }); return result.canceled ? clusters.discover() : clusters.addPaths(result.filePaths); },
+    'metrics:resource': input => resourceMetrics.read(input),
     'metrics:read': input => resources.metrics(input.clusterId),
     'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun),
     'resources:scale': input => resources.scale(input, input.replicas),

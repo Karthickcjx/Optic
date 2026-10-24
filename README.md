@@ -115,3 +115,12 @@ Helm 3/4 release discovery uses explicit status filters (Helm 4 removed --all), 
 
 ## Related resources
 Open a resource's **Related** tab to follow its owner chain, browse live related Pods, or inspect a Deployment's retained ReplicaSet revisions. Links open the target in its own resource tab and namespace. Ownership uses UIDs, not name similarity; deleted/recreated owners and access errors are displayed. Supported owner APIs are the built-in resource catalog; unsupported custom owner APIs are shown without a link. Related Pods cover workloads (including Deployment/ReplicaSet and CronJob/Job chains), Services with selectors, Nodes, and PVC consumers. Revision history includes only ReplicaSets still retained by Kubernetes; selecting one opens its properties and YAML, without performing a rollback.
+
+## Pod, container and workload metrics
+Open **Metrics** in a Pod, Deployment, ReplicaSet, StatefulSet, DaemonSet, ReplicationController, Job or CronJob drawer. Select all containers or a named container and a 5/15/30/60-minute window. Charts refresh every 15 seconds and include timestamp/value axes and sample tooltips.
+
+Prometheus uses bounded range queries through the selected cluster's service proxy for CPU cores, memory working set, network receive/transmit bytes per second, and container filesystem bytes used. Workload membership follows current owner UIDs, including Deployment/ReplicaSet and CronJob/Job chains. History is limited to currently owned Pod names, not deleted Pods. Duplicate scrape targets are deduplicated by metric identity.
+
+Automatic source selection tries Prometheus then Metrics Server. Metrics Server provides CPU/memory snapshots, accumulated only while the drawer remains open; network and filesystem explicitly show unavailable. Named-container views omit shared Pod network traffic. Container filesystem usage is not PVC capacity. Missing series are not displayed as zero. Resource metrics honor disabled/hidden metric categories, bound workloads to 200 Pods, and stop refreshing when the tab closes. Upstream permission failures surface in the drawer; stale samples remain labelled after request failures.
+
+References: [Kubernetes resource metrics pipeline](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/) and [Prometheus range-query API](https://prometheus.io/docs/prometheus/latest/querying/api/).

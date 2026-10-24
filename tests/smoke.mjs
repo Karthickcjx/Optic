@@ -6,16 +6,17 @@ import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'workbench-smoke-'));
 const requests = [], sockets = new Set(), watchers = new Set();
-const pod = { apiVersion: 'v1', kind: 'Pod', metadata: { uid: 'pod-1', name: 'api-gateway', namespace: 'default', resourceVersion: '10', creationTimestamp: new Date(Date.now() - 3600000).toISOString(), labels: { app: 'gateway', environment: 'test' } }, spec: { nodeName: 'worker-1', containers: [{ name: 'server', image: 'example/gateway:1.0' }] }, status: { phase: 'Running' } };
+const pod = { apiVersion: 'v1', kind: 'Pod', metadata: { uid: 'pod-1', name: 'api-gateway', namespace: 'default', resourceVersion: '10', creationTimestamp: new Date(Date.now() - 3600000).toISOString(), labels: { app: 'gateway', environment: 'test' } }, spec: { nodeName: 'worker-1', containers: [{ name: 'server', image: 'example/gateway:1.0' }] }, status: { phase: 'Running', containerStatuses: [{ name: 'server', ready: true, restartCount: 0, state: { running: {} } }] } };
 const deployment = { apiVersion: 'apps/v1', kind: 'Deployment', metadata: { name: 'web', namespace: 'default', uid: 'dep-1', annotations: { 'deployment.kubernetes.io/revision': '2' } }, spec: { replicas: 2 }, status: { readyReplicas: 2 } };
 const replicaSet = { apiVersion: 'apps/v1', kind: 'ReplicaSet', metadata: { name: 'web-rs', namespace: 'default', uid: 'rs-1', annotations: { 'deployment.kubernetes.io/revision': '2' }, ownerReferences: [{ apiVersion: 'apps/v1', kind: 'Deployment', name: 'web', uid: 'dep-1', controller: true }] }, spec: { replicas: 2 }, status: { readyReplicas: 2 } };
 pod.metadata.ownerReferences = [{ apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'web-rs', uid: 'rs-1', controller: true }];
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost'); requests.push({ method: req.method, path: url.pathname, query: url.search });
   res.setHeader('Content-Type', 'application/json');
-  if (url.pathname.endsWith('/log')) { res.setHeader('Content-Type', 'text/plain'); res.write('2026-10-22T12:00:00Z gateway ready\n'); return; }
+  if (url.pathname.endsWith('/log')) { res.setHeader('Content-Type', 'text/plain'); res.write('2026-10-22T12:00:00Z gateway ready\n'); if (process.env.OPTIC_SCREENSHOT_DIR) res.write('2026-10-22T12:00:01Z level=warn retrying upstream request\n2026-10-22T12:00:02Z level=error upstream connection refused\n'); return; }
   if (url.searchParams.has('watch')) { res.writeHead(200); res.flushHeaders(); watchers.add(res); req.on('close', () => watchers.delete(res)); return; }
   if (url.pathname === '/version') return res.end(JSON.stringify({ major: '1', minor: '34', gitVersion: 'v1.34.0-test' }));
+  if (url.pathname === '/apis/metrics.k8s.io/v1beta1/namespaces/default/pods') return res.end(JSON.stringify({ items: [{ metadata: { name: 'api-gateway', namespace: 'default' }, containers: [{ name: 'server', usage: { cpu: '250m', memory: '64Mi' } }] }] }));
   if (url.pathname === '/apis/metrics.k8s.io/v1beta1/nodes') return res.end(JSON.stringify({ items: [{ metadata: { name: 'worker-1' }, usage: { cpu: '500m', memory: '1Gi' } }] }));
   if (req.method === 'PATCH') { let body = ''; for await (const chunk of req) body += chunk; return res.end(body); }
   if (url.pathname === '/api/v1') return res.end(JSON.stringify({ apiVersion: 'v1', kind: 'APIResourceList', groupVersion: 'v1', resources: [{ name: 'configmaps', namespaced: true, kind: 'ConfigMap', verbs: ['patch'] }, { name: 'pods', singularName: 'pod', namespaced: true, kind: 'Pod', verbs: ['get', 'list', 'watch', 'update', 'delete'] }] }));
@@ -37,18 +38,42 @@ let app;
 try {
   const env = { ...process.env, WORKBENCH_KUBECONFIG: configPath }; delete env.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({ ...(process.env.WORKBENCH_TEST_EXECUTABLE ? { executablePath: process.env.WORKBENCH_TEST_EXECUTABLE } : {}), args: [...(process.env.WORKBENCH_TEST_EXECUTABLE ? [] : ['.']), `--user-data-dir=${join(temp, 'profile')}`], env });
-  const page = await app.firstWindow(); const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const page = await app.firstWindow();
+  const captureDir = process.env.OPTIC_SCREENSHOT_DIR;
+  const captures = [];
+  const capture = async (name) => {
+    if (!captureDir) return;
+    await mkdir(captureDir, { recursive: true });
+    await page.evaluate(() => {
+      let badge = document.getElementById('showcase-demo-label');
+      if (!badge) { badge = document.createElement('div'); badge.id = 'showcase-demo-label'; document.body.appendChild(badge); }
+      badge.textContent = 'OPTIC | DEMO WORKSPACE';
+      badge.style.cssText = 'position:fixed;bottom:3px;left:45%;z-index:99999;font:10px sans-serif;letter-spacing:1px;color:#a8c7df;background:#25282b;padding:2px 8px;pointer-events:none';
+    });
+    await page.screenshot({ path: join(captureDir, name + '.png') });
+    captures.push(name);
+    await writeFile(join(captureDir, 'screenshots.json'), JSON.stringify(captures, null, 2));
+  };
+  if (captureDir) {
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1600, 1000));
+    await expect(page.locator('.welcome-brand')).toBeVisible();
+    await capture('01-welcome');
+  }
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.getByRole('button', { name: 'Pods', exact: true }).click();
   await expect(page.getByText('api-gateway', { exact: true })).toBeVisible({ timeout: 20000 });
+  await capture('02-pods');
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   await page.getByTitle('Add kubeconfig', { exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Add kubeconfig', exact: true })).toBeVisible();
+  await capture('03-kubeconfig-import-options');
   await expect(page.getByRole('button', { name: 'Add kubeconfig from filesystem', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByTitle('Add kubeconfig', { exact: true }).click();
   await page.getByRole('button', { name: 'Add kubeconfig from clipboard', exact: true }).click();
   const pasteDialog = page.getByRole('dialog', { name: 'Add Clusters from Kubeconfig', exact: true });
   await expect(pasteDialog).toBeVisible();
+  await capture('04-paste-kubeconfig-editor');
   await expect(pasteDialog.getByRole('button', { name: 'Add Clusters', exact: true })).toBeDisabled();
   await page.getByLabel('Kubeconfig YAML', { exact: true }).fill('not a kubeconfig');
   await pasteDialog.getByRole('button', { name: 'Add Clusters', exact: true }).click();
@@ -59,19 +84,41 @@ try {
   assert.equal(prefs.contextIsolation, true); assert.equal(prefs.nodeIntegration, false); assert.equal(prefs.sandbox, true);
   await page.getByText('api-gateway', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'api-gateway' })).toBeVisible();
+  await capture('05-pod-details');
+  if (captureDir) {
+    const unhealthy = { ...pod, status: { phase: 'Pending', conditions: [{ type: 'Ready', status: 'False', reason: 'ContainersNotReady', message: 'Container image could not be pulled.' }], containerStatuses: [{ name: 'server', ready: false, restartCount: 0, state: { waiting: { reason: 'ImagePullBackOff', message: 'Unable to pull example/gateway:missing' } } }] } };
+    for (const response of watchers) response.write(JSON.stringify({ type: 'MODIFIED', object: unhealthy }) + '\n');
+    await expect(page.locator('tbody')).toContainText('ImagePullBackOff');
+    await capture('05b-resource-error-highlighting');
+    for (const response of watchers) response.write(JSON.stringify({ type: 'MODIFIED', object: pod }) + '\n');
+    await expect(page.locator('tbody')).toContainText('Running');
+  }
+
+  await page.getByRole('button', { name: 'Metrics', exact: true }).click();
+  await expect(page.getByRole('img', { name: 'CPU (cores) history', exact: true })).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.resource-metrics')).toContainText('0.250');
+  await expect(page.locator('.resource-metrics')).toContainText('Requires Prometheus');
+  await page.getByLabel('Metrics container', { exact: true }).selectOption('server');
+  await expect(page.getByRole('img', { name: 'Memory working set history', exact: true })).toBeVisible();
+  await page.getByLabel('Resource metrics time range', { exact: true }).selectOption('5');
+  await expect(page.getByRole('img', { name: 'CPU (cores) history', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Related', exact: true }).click();
   await expect(page.getByRole('button', { name: 'ReplicaSet / web-rs', exact: true })).toBeVisible();
+  await capture('06-owner-chain');
   await page.getByRole('button', { name: 'Deployment / web', exact: true }).click();
   await expect(page.locator('.details h2')).toHaveText('web');
   await page.getByRole('button', { name: 'Related', exact: true }).click();
   await expect(page.locator('.related-resources')).toContainText('2 (current)');
+  await capture('07-related-pods-and-revisions');
   await page.locator('.related-resources').getByRole('button', { name: 'web-rs', exact: true }).click();
   await expect(page.locator('.details h2')).toHaveText('web-rs');
+  await capture('08-replicaset-details');
   await page.getByRole('button', { name: 'Related', exact: true }).click();
   await page.locator('.related-resources').getByRole('button', { name: 'api-gateway', exact: true }).click();
   await expect(page.locator('.details h2')).toHaveText('api-gateway');
   await page.getByRole('button', { name: 'Logs', exact: true }).click();
   await expect(page.locator('.logs')).toContainText('gateway ready');
+  await capture('09-live-container-logs');
   await page.getByLabel('Previous container', { exact: true }).check();
   await expect.poll(() => requests.some(r => r.path.endsWith('/log') && r.query.includes('previous=true'))).toBe(true);
   await page.getByLabel('Previous container', { exact: true }).uncheck();
@@ -80,11 +127,13 @@ try {
   await expect.poll(() => requests.filter(r => r.path.endsWith('/log')).length).toBeGreaterThan(logsBefore);
   await page.getByRole('button', { name: 'Port forward', exact: true }).click();
   await expect(page.getByLabel('Local port', { exact: true })).toHaveValue('0');
+  await capture('10-port-forward-configuration');
   await page.getByLabel('Remote port', { exact: true }).fill('65536');
   await expect(page.getByRole('button', { name: 'Start forwarding', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: 'YAML', exact: true }).click();
   await expect(page.getByLabel('Resource YAML')).toHaveValue(/api-gateway/);
+  await capture('11-resource-yaml-editor');
   await page.getByRole('button', { name: 'Save YAML', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect.poll(() => requests.some(r => r.method === 'PUT')).toBe(true);
@@ -139,26 +188,32 @@ try {
   await page.getByLabel('Monitor nodes', { exact: true }).selectOption('node:worker-1');
   await expect(page.getByRole('img', { name: 'CPU: 0.50 used', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/overview.png' });
+  await capture('12-metrics-overview');
   await page.locator('.navigator').getByRole('button', { name: 'Deployments', exact: true }).click();
   await page.getByText('web', { exact: true }).click();
   await expect(page.locator('.details')).toContainText('Ready replicas');
   await page.screenshot({ path: 'artifacts/resource-details.png' });
+  await capture('13-deployment-details');
   await page.getByRole('button', { name: 'Scale', exact: true }).click();
   await page.getByLabel('Replicas', { exact: true }).fill('3');
+  await capture('14-scale-workload');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect.poll(() => requests.some(r => r.method === 'PATCH' && r.path.endsWith('/deployments/web/scale'))).toBe(true);
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  await capture('15-restart-confirmation');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect.poll(() => requests.some(r => r.method === 'PATCH' && r.path.endsWith('/deployments/web'))).toBe(true);
   await page.locator('.navigator').getByRole('button', { name: 'Nodes', exact: true }).click();
   await page.getByText('worker-1', { exact: true }).click();
   await page.getByRole('button', { name: 'Cordon', exact: true }).click();
+  await capture('16-node-management');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect.poll(() => requests.some(r => r.method === 'PATCH' && r.path === '/api/v1/nodes/worker-1')).toBe(true);
   await page.getByTitle('Create resource', { exact: true }).click();
   await page.getByRole('button', { name: 'Apply to cluster', exact: true }).isDisabled().then(value => assert.equal(value, true));
   await page.getByRole('button', { name: 'Validate manifest', exact: true }).click();
   await expect(page.locator('.validation-result')).toContainText('example-config');
+  await capture('17-manifest-validation');
   assert.equal(requests.some(r => r.path.endsWith('/configmaps/example-config') && !r.query.includes('dryRun')), false);
   await page.getByRole('button', { name: 'Apply to cluster', exact: true }).click();
   await expect.poll(() => requests.some(r => r.path.endsWith('/configmaps/example-config') && !r.query.includes('dryRun'))).toBe(true);
@@ -171,20 +226,29 @@ try {
   await page.locator('.cluster-tree-header').click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: 'Disconnect', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/cluster-menu.png' });
+  await capture('18-cluster-context-menu');
   await expect(page.getByRole('menuitem', { name: 'Remove from Kubeconfig', exact: true })).toBeVisible();
   await page.getByRole('menuitem', { name: 'Add to Hotbar', exact: true }).click();
   await expect(page.locator('.activity-rail .context-icon')).toHaveCount(1);
   await page.getByTitle('Cluster actions: local-test', { exact: true }).click();
   await page.getByRole('menuitem', { name: 'Appearance', exact: true }).click();
   await page.getByLabel('Cluster display name', { exact: true }).fill('My test cluster');
+  await capture('19-cluster-appearance');
   await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
   await expect(page.locator('.cluster-tree-header')).toContainText('My test cluster');
   await page.getByTitle('Cluster actions: local-test', { exact: true }).click();
   await page.getByRole('menuitem', { name: 'Show Cluster Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Test connection', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('v1.34.0-test');
+  await capture('20-cluster-general-settings');
   const settingsNav = page.getByRole('navigation', { name: 'Cluster settings sections' });
   for (const name of ['General','Proxy','Terminal','Namespaces','Metrics','Monitoring Stack','Cost','Node Shell']) await expect(settingsNav.getByRole('button', { name, exact: true })).toBeVisible();
+  if (captureDir) {
+    for (const section of ['Proxy', 'Terminal', 'Namespaces', 'Metrics', 'Monitoring Stack', 'Cost', 'Node Shell']) {
+      await settingsNav.getByRole('button', { name: section, exact: true }).click();
+      await capture('21-settings-' + section.toLowerCase().replaceAll(' ', '-'));
+    }
+  }
   await settingsNav.getByRole('button', { name: 'Terminal', exact: true }).click();
   await page.getByLabel('Default namespace', { exact: true }).fill('team-a');
   await page.getByRole('button', { name: 'Save settings', exact: true }).click();
@@ -210,6 +274,7 @@ try {
   await expect(page.getByRole('status')).toContainText('Settings saved');
   await page.getByRole('button', { name: 'Read saved cost source', exact: true }).click();
   await expect(page.locator('.settings-info')).toContainText('USD 6.00');
+  await capture('22-cost-estimate');
   await settingsNav.getByRole('button', { name: 'Monitoring Stack', exact: true }).click();
   // Keep chart discovery deterministic and offline; backend lookup is covered by unit tests.
   await app.evaluate(({ ipcMain }) => {
@@ -220,7 +285,23 @@ try {
   await expect(page.getByLabel('prometheus chart version', { exact: true })).toHaveValue('99.2.3');
   await page.getByRole('button', { name: 'Review monitoring changes' }).click();
   await expect(page.getByRole('dialog', { name: 'Confirm monitoring changes' })).toContainText('99.2.3');
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await app.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler('monitoring:apply');
+    ipcMain.handle('monitoring:apply', async () => {
+      await new Promise(resolve => { globalThis.finishMonitoring = resolve; });
+      return { ok: true, data: { completed: ['prometheus installed'], error: 'kube-state-metrics failed to become ready' } };
+    });
+  });
+  await page.getByRole('button', { name: 'Apply monitoring changes', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Confirm monitoring changes' })).toHaveCount(0);
+  await expect(page.locator('.helm-notification.running')).toContainText('Monitoring Stack');
+  await page.getByRole('tab', { name: 'Welcome', exact: true }).click();
+  await expect(page.locator('.helm-notification.running')).toBeVisible();
+  await expect.poll(() => app.evaluate(() => typeof globalThis.finishMonitoring)).toBe('function');
+  await app.evaluate(() => globalThis.finishMonitoring());
+  await expect(page.locator('.helm-notification.failed')).toContainText('Completed: prometheus installed');
+  await expect(page.locator('.helm-notification.failed')).toContainText('kube-state-metrics failed');
+  await page.locator('.helm-notification.failed button[aria-label^="Dismiss"]').click();
   await page.getByRole('tab', { name: /^Pods .*local-test$/ }).click();
   await expect(page.getByLabel('Namespace', { exact: true })).toHaveValue('default');
   await expect(page.locator('tbody')).toContainText('api-gateway');
@@ -278,6 +359,7 @@ current-context: pasted-context
   });
   await page.locator('.navigator').getByRole('button', { name: 'Charts', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Helm Charts', exact: true })).toBeVisible();
+  await capture('23-helm-chart-catalog');
   await page.getByRole('button', { name: 'nginx', exact: true }).click();
   const helmDialog = page.getByRole('dialog', { name: 'Configure Helm release', exact: true });
   await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeDisabled();
@@ -285,24 +367,32 @@ current-context: pasted-context
   await page.getByLabel('Helm values YAML', { exact: true }).fill('replicaCount: 2');
   await page.getByRole('button', { name: 'Load chart defaults and README', exact: true }).click();
   await expect(helmDialog).toContainText('Chart defaults');
+  await capture('24-helm-values-editor');
   await page.getByRole('button', { name: 'Preview changes', exact: true }).click();
   await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeEnabled();
+  if (captureDir) await page.locator('.helm-modal').evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await capture('25-helm-manifest-preview');
   await page.getByLabel('Helm values YAML', { exact: true }).fill('replicaCount: 3');
   await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Preview changes', exact: true }).click();
   await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
   assert.equal(await app.evaluate(() => globalThis.helmTestCalls.length), 0);
+  await capture('26-helm-confirmation');
   await page.getByRole('dialog', { name: 'Confirm Helm operation', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.screenshot({ path: 'artifacts/helm-install.png' });
   await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(helmDialog).toHaveCount(0);
   await expect(page.locator('.helm-notification.running')).toContainText('Install web');
+  await capture('27-background-operation');
   await page.getByRole('tab', { name: 'Welcome', exact: true }).click();
   await expect(page.locator('.helm-notification.running')).toBeVisible();
   await app.evaluate(() => globalThis.finishHelmInstall());
   await expect(page.locator('.helm-notification.succeeded')).toContainText('Operation completed successfully');
+  await capture('28-operation-complete');
   await page.locator('.navigator').getByRole('button', { name: 'Releases', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'web', exact: true })).toBeVisible();
+  await capture('29-helm-releases');
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'Upgrade / edit values', exact: true }).click();
   await expect(page.getByLabel('Helm values YAML', { exact: true })).toHaveValue('replicaCount: 2');
@@ -314,17 +404,29 @@ current-context: pasted-context
   await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'History', exact: true }).click();
+  await capture('30-helm-revision-history');
   await page.getByRole('button', { name: 'Rollback to 1', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
   await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'Uninstall release', exact: true }).click();
+  await capture('31-helm-uninstall-confirmation');
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
   await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   assert.deepEqual(await app.evaluate(() => globalThis.helmTestCalls), [{ action: 'install', values: 'replicaCount: 3' }, { action: 'upgrade', values: 'replicaCount: 2' }, { action: 'rollback', revision: 1 }, { action: 'uninstall' }]);
   assert.deepEqual(errors, []);
+  if (captureDir) {
+    while (await page.locator('.helm-notifications button[aria-label^="Dismiss"]').count()) await page.locator('.helm-notifications button[aria-label^="Dismiss"]').first().click();
+    await page.getByRole('button', { name: 'Search resources and commands', exact: false }).click();
+    await capture('32-command-palette');
+    await page.keyboard.press('Escape');
+    await page.getByTitle('Local terminal', { exact: true }).click();
+    await expect(page.locator('.terminal-host').last().locator('.xterm-screen')).toBeVisible();
+    await expect(page.locator('.terminal-host').last()).toContainText(/PS|PowerShell|>/, { timeout: 15000 });
+    await capture('33-integrated-terminal');
+  }
   console.log('PASS: Helm chart browsing, values editing, preview invalidation, confirmed install/upgrade/rollback/uninstall.');
   console.log('PASS: cluster context menu, hotbar, appearance, connection settings, connect and backed-up context removal.');
   console.log('PASS: overview metrics, workspace tabs, search, scale, restart, cordon, manifest dry-run/apply.');

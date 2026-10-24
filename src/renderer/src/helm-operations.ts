@@ -26,7 +26,7 @@ export function startHelmOperation(clusterId: string, title: string, run: () => 
     operations: s.operations.map(o => o.id === id ? { ...o, status, message } : o)
   }));
   void Promise.resolve().then(run).then(
-    () => finish('succeeded', 'Operation completed successfully.'),
+    result => finish('succeeded', typeof result === 'string' ? result : 'Operation completed successfully.'),
     error => finish('failed', error instanceof Error ? error.message : 'Helm operation failed. Check release status before retrying.')
   );
   return true;
