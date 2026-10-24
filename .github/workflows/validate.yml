@@ -21,3 +21,8 @@ jobs:
         with:
           name: desktop-test-screenshots
           path: artifacts/*.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: win-build
+          path: release/*
