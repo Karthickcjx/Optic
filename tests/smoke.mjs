@@ -229,7 +229,21 @@ try {
   await page.getByTitle('Close details', { exact: true }).click();
   await expect(page.locator('.details')).toHaveCount(0);
   await page.getByTitle('Create resource', { exact: true }).click();
+  await expect(page.getByLabel('Resource template', { exact: true })).toHaveValue('nodes');
+  await expect(page.getByLabel('Manifest YAML', { exact: true })).toHaveValue(/kind: Node/);
+  await expect(page.getByLabel('Manifest YAML', { exact: true })).not.toHaveValue(/namespace:/);
+  await page.getByLabel('Resource template', { exact: true }).selectOption('pods');
+  await expect(page.getByLabel('Manifest YAML', { exact: true })).toHaveValue(/kind: Pod/);
+  await expect(page.getByLabel('Manifest YAML', { exact: true })).toHaveValue(/containers:/);
+  // Keep the existing dry-run/apply fixture, now selected explicitly.
+  await page.getByLabel('Resource template', { exact: true }).selectOption('configmaps');
   await page.getByRole('button', { name: 'Apply to cluster', exact: true }).isDisabled().then(value => assert.equal(value, true));
+  await page.getByRole('button', { name: 'Validate manifest', exact: true }).click();
+  await expect(page.locator('.validation-result')).toContainText('example-config');
+  await page.getByLabel('Resource template', { exact: true }).selectOption('deployments');
+  await expect(page.getByRole('button', { name: 'Apply to cluster', exact: true })).toBeDisabled();
+  await expect(page.locator('.validation-result')).toHaveCount(0);
+  await page.getByLabel('Resource template', { exact: true }).selectOption('configmaps');
   await page.getByRole('button', { name: 'Validate manifest', exact: true }).click();
   await expect(page.locator('.validation-result')).toContainText('example-config');
   await capture('17-manifest-validation');

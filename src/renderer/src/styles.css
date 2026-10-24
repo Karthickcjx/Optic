@@ -93,3 +93,7 @@
 .application-card small { font-size: 12px; color: #9ca9b5; margin-left: 12px; }
 .application-card table { width: 100%; }
 .application-card th, .application-card td { padding: 8px; text-align: left; }
+
+.manifest-modal > label { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.manifest-modal > label select { min-width: 0; max-width: 100%; }
+.manifest-modal { max-height: 90vh; overflow-y: auto; }
