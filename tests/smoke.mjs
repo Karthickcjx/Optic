@@ -252,7 +252,7 @@ current-context: pasted-context
       'helm:versions': () => [{ version: '2.0.0', appVersion: '1.27' }, { version: '1.0.0', appVersion: '1.26' }],
       'helm:chart-info': () => ({ values: 'replicaCount: 1', readme: '# Test chart' }),
       'helm:preview': () => ({ token: '11111111-1111-4111-8111-111111111111', manifest: 'kind: Deployment\nmetadata: {name: web}', resources: 1 }),
-      'helm:apply': input => { globalThis.helmTestCalls.push({ action: input.plan.action, values: input.plan.values }); },
+      'helm:apply': async input => { globalThis.helmTestCalls.push({ action: input.plan.action, values: input.plan.values }); if (input.plan.action === 'install') await new Promise(resolve => { globalThis.finishHelmInstall = resolve; }); },
       'helm:releases': () => [release],
       'helm:details': () => ({ status: 'deployed', values: 'replicaCount: 2', manifest: 'kind: Deployment', notes: 'Ready', history: [{ revision: 2, status: 'deployed', chart: 'nginx-2.0.0', description: 'Upgrade' }, { revision: 1, status: 'superseded', chart: 'nginx-1.0.0', description: 'Install' }] }),
       'helm:rollback': input => { globalThis.helmTestCalls.push({ action: 'rollback', revision: input.revision }); },
@@ -281,6 +281,11 @@ current-context: pasted-context
   await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(helmDialog).toHaveCount(0);
+  await expect(page.locator('.helm-notification.running')).toContainText('Install web');
+  await page.getByRole('tab', { name: 'Welcome', exact: true }).click();
+  await expect(page.locator('.helm-notification.running')).toBeVisible();
+  await app.evaluate(() => globalThis.finishHelmInstall());
+  await expect(page.locator('.helm-notification.succeeded')).toContainText('Operation completed successfully');
   await page.locator('.navigator').getByRole('button', { name: 'Releases', exact: true }).click();
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'Upgrade / edit values', exact: true }).click();
@@ -290,15 +295,18 @@ current-context: pasted-context
   await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(helmDialog).toHaveCount(0);
+  await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'History', exact: true }).click();
   await page.getByRole('button', { name: 'Rollback to 1', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
+  await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   await page.getByRole('button', { name: 'web', exact: true }).click();
   await page.getByRole('button', { name: 'Uninstall release', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
+  await expect(page.locator('.helm-notification.running')).toHaveCount(0);
   assert.deepEqual(await app.evaluate(() => globalThis.helmTestCalls), [{ action: 'install', values: 'replicaCount: 3' }, { action: 'upgrade', values: 'replicaCount: 2' }, { action: 'rollback', revision: 1 }, { action: 'uninstall' }]);
   assert.deepEqual(errors, []);
   console.log('PASS: Helm chart browsing, values editing, preview invalidation, confirmed install/upgrade/rollback/uninstall.');

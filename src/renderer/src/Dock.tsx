@@ -1,3 +1,4 @@
+import { logSeverity } from '../../shared/severity';
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -34,23 +35,24 @@ function TerminalPane({ tab, visible }: { tab: DockTab; visible: boolean }) {
 function LogsPane({ tab, visible }: { tab: DockTab; visible: boolean }) {
   const [text, setText] = useState(''); const [status, setStatus] = useState('Connecting'); const [follow, setFollow] = useState(true);
   const [revision, setRevision] = useState(0), [previous, setPrevious] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState(''); const output = useRef<HTMLPreElement>(null);
   useEffect(() => {
-    const id = crypto.randomUUID(); let active = true, failed = false; setText(''); setStatus('Connecting');
+    const id = crypto.randomUUID(); let active = true, failed = false; setFailed(false); setText(''); setStatus('Connecting');
     const unsubscribe = window.desktop.subscribe(event => {
       if (!active || event.id !== id) return;
       if (event.type === 'data') {
         setStatus('Live'); setText(previous => (previous + event.data).slice(-1_000_000));
         void request('stream:ack', { id, seq: event.seq }).catch(() => {});
       }
-      if (event.type === 'error') { failed = true; setStatus(event.error.message); }
+      if (event.type === 'error') { failed = true; setFailed(true); setStatus(event.error.message); }
       if (event.type === 'end' && !failed) setStatus('Stream ended');
     });
-    void request('logs:start', { ...tab.options as PodTarget, id, tailLines: 500, previous }).catch(e => { if (active) setStatus(e.message); });
+    void request('logs:start', { ...tab.options as PodTarget, id, tailLines: 500, previous }).catch(e => { if (active) { setFailed(true); setStatus(e.message); } });
     return () => { active = false; unsubscribe(); closeStream(id); };
   }, [tab, revision, previous]);
   useEffect(() => { if (follow && output.current) output.current.scrollTop = output.current.scrollHeight; }, [text, follow, visible]);
-  return <div className="stream-pane" style={{ display: visible ? 'flex' : 'none' }}><div className="log-toolbar"><span className={status === 'Live' ? 'live-dot' : ''}/>{status}<button onClick={() => setRevision(v => v + 1)}>Reconnect logs</button><label><input type="checkbox" checked={previous} onChange={e => setPrevious(e.target.checked)}/>Previous container</label><input placeholder="Filter log lines" value={filter} onChange={e => setFilter(e.target.value)}/><label><input type="checkbox" checked={follow} onChange={e => setFollow(e.target.checked)}/> Follow</label><button onClick={() => setText('')}>Clear</button></div><pre ref={output} className="logs">{filter ? text.split('\n').filter(line => line.toLowerCase().includes(filter.toLowerCase())).join('\n') : text || 'Waiting for container output…'}</pre></div>;
+  return <div className="stream-pane" style={{ display: visible ? 'flex' : 'none' }}><div className={`log-toolbar ${failed ? "severity-error" : ""}`}><span className={status === 'Live' ? 'live-dot' : ''}/>{status}<button onClick={() => setRevision(v => v + 1)}>Reconnect logs</button><label><input type="checkbox" checked={previous} onChange={e => setPrevious(e.target.checked)}/>Previous container</label><input placeholder="Filter log lines" value={filter} onChange={e => setFilter(e.target.value)}/><label><input type="checkbox" checked={follow} onChange={e => setFollow(e.target.checked)}/> Follow</label><button onClick={() => setText('')}>Clear</button></div><pre ref={output} className="logs">{text ? text.split('\n').filter(line => !filter || line.toLowerCase().includes(filter.toLowerCase())).map((line, index, lines) => <span key={index} className={`log-line severity-${logSeverity(line)}`}>{line}{index < lines.length - 1 ? '\n' : ''}</span>) : 'Waiting for container output?'}</pre></div>;
 }
 export function Dock() {
   const tabs = useStore(s => s.tabs), active = useStore(s => s.activeTab), activate = useStore(s => s.activateTab), close = useStore(s => s.closeTab);
