@@ -1,3 +1,4 @@
+import { publicUrl } from './helm';
 import { clusterSettingsSchema } from './cluster-settings';
 import { z } from 'zod';
 import { resourceKinds, type Requests } from '../shared/protocol';
@@ -7,7 +8,23 @@ const id = z.string().uuid();
 const custom = z.object({ apiVersion: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?$/), kind: name, plural: name, namespaced: z.boolean() });
 const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional() });
 const target = scope.extend({ name });
+const helmName = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(53);
+const namespace = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(63);
+const chart = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/).max(253);
+const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)?$/).max(128);
+const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
+const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'helm:repositories': z.undefined(),
+  'helm:repository-save': z.object({ repository: z.object({ name: helmName, url: z.string().max(2048).refine(v => publicUrl(v)) }), remove: z.boolean() }),
+  'helm:charts': z.object({ repository: helmName, refresh: z.boolean().optional() }),
+  'helm:versions': z.object({ repository: helmName, chart }),
+  'helm:chart-info': z.object({ repository: helmName, chart, version }),
+  'helm:releases': z.object({ clusterId: text, namespace: namespace.optional() }),
+  'helm:details': helmTarget, 'helm:preview': helmPlan,
+  'helm:apply': z.object({ plan: helmPlan, token: id }),
+  'helm:rollback': helmTarget.extend({ revision: z.number().int().min(1).max(1000000) }),
+  'helm:uninstall': helmTarget,
   'settings:get': z.object({ clusterId: text }), 'settings:save': z.object({ clusterId: text, settings: clusterSettingsSchema }),
   'settings:directory': z.undefined(), 'settings:reveal': z.object({ clusterId: text }),
   'clusters:connect': z.object({ clusterId: text }), 'clusters:disconnect': z.object({ clusterId: text }),

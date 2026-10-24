@@ -1,3 +1,4 @@
+import { HelmService } from '../helm';
 import { Providers } from '../providers';
 import { Monitoring } from '../monitoring';
 import { NodeShell } from '../node-shell';
@@ -16,22 +17,36 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
   const streams = new Streams(); const sessions = new SessionService(clusters, streams);
   const providers = new Providers(clusters), monitoring = new Monitoring(clusters), nodeShell = new NodeShell(clusters, streams, sessions);
-  app.on('before-quit', () => monitoring.dispose());
+  const helm = new HelmService(clusters, join(app.getPath('userData'), 'helm-repositories.json'), id => monitoring.isBusy(id));
+  const helmBusy = (id: string) => monitoring.isBusy(id) || helm.isBusy(id);
+  app.on('before-quit', () => { monitoring.dispose(); helm.dispose(); });
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'helm:repositories': () => helm.repositories(),
+    'helm:repository-save': input => helm.saveRepository(input.repository, input.remove),
+    'helm:charts': input => helm.charts(input.repository, input.refresh),
+    'helm:versions': input => helm.versions(input.repository, input.chart),
+    'helm:chart-info': input => helm.chartInfo(input.repository, input.chart, input.version),
+    'helm:releases': input => helm.releases(input.clusterId, input.namespace),
+    'helm:details': input => helm.details(input),
+    'helm:preview': input => helm.preview(input),
+    'helm:apply': input => helm.apply(input.plan, input.token),
+    'helm:rollback': input => helm.rollback(input, input.revision),
+    'helm:uninstall': input => helm.uninstall(input),
+
     'settings:get': input => clusters.settings(input.clusterId),
-    'settings:save': input => { if (monitoring.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the monitoring operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
+    'settings:save': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
     'settings:directory': async () => { const result = await dialog.showOpenDialog({ title: 'Terminal working directory', properties: ['openDirectory'] }); return result.canceled ? undefined : result.filePaths[0]; },
     'settings:reveal': input => shell.showItemInFolder(clusters.get(input.clusterId, true).cluster.source),
     'clusters:connect': input => clusters.connect(input.clusterId),
-    'clusters:disconnect': input => { if (monitoring.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the monitoring operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
+    'clusters:disconnect': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
     'cost:read': input => providers.cost(input.clusterId),
     'monitoring:version': input => monitoring.latestVersion(input.component),
     'monitoring:status': input => monitoring.status(input.clusterId),
-    'monitoring:apply': input => monitoring.apply(input.clusterId, input.changes),
+    'monitoring:apply': input => { if (helm.isBusy(input.clusterId)) throw new AppError('HELM_BUSY', 'Wait for the active Helm operation.'); return monitoring.apply(input.clusterId, input.changes); },
     'nodeshell:open': (input, owner) => nodeShell.open(owner, input),
-    'clusters:remove': input => { if (monitoring.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the monitoring operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
+    'clusters:remove': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
     'forward:start': (input, owner) => forwards.start(owner, input),
     'clusters:import-clipboard': input => clusters.importClipboard(input.yaml),
     'clusters:import': async () => { const result = await dialog.showOpenDialog({ title: 'Add kubeconfig files', properties: ['openFile', 'multiSelections'] }); return result.canceled ? clusters.discover() : clusters.addPaths(result.filePaths); },

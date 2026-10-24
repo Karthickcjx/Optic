@@ -242,6 +242,66 @@ current-context: pasted-context
   await expect(page.getByRole('dialog', { name: 'Add Clusters from Kubeconfig', exact: true })).toHaveCount(0);
   await expect(page.getByTitle('Cluster actions: pasted-context', { exact: true })).toBeVisible();
   assert.deepEqual(errors, []);
+  // Mock external Helm at IPC for deterministic renderer flows; service tests cover CLI arguments.
+  await app.evaluate(({ ipcMain }) => {
+    globalThis.helmTestCalls = [];
+    const release = { name: 'web', namespace: 'default', revision: '2', updated: '2026-10-23', status: 'deployed', chart: 'nginx-2.0.0', app_version: '1.27' };
+    const handlers = {
+      'helm:repositories': () => [{ name: 'bitnami', url: 'https://charts.bitnami.com/bitnami' }],
+      'helm:charts': () => [{ name: 'nginx', description: 'Test web chart', version: '2.0.0', appVersion: '1.27', repository: 'bitnami', deprecated: false }],
+      'helm:versions': () => [{ version: '2.0.0', appVersion: '1.27' }, { version: '1.0.0', appVersion: '1.26' }],
+      'helm:chart-info': () => ({ values: 'replicaCount: 1', readme: '# Test chart' }),
+      'helm:preview': () => ({ token: '11111111-1111-4111-8111-111111111111', manifest: 'kind: Deployment\nmetadata: {name: web}', resources: 1 }),
+      'helm:apply': input => { globalThis.helmTestCalls.push({ action: input.plan.action, values: input.plan.values }); },
+      'helm:releases': () => [release],
+      'helm:details': () => ({ status: 'deployed', values: 'replicaCount: 2', manifest: 'kind: Deployment', notes: 'Ready', history: [{ revision: 2, status: 'deployed', chart: 'nginx-2.0.0', description: 'Upgrade' }, { revision: 1, status: 'superseded', chart: 'nginx-1.0.0', description: 'Install' }] }),
+      'helm:rollback': input => { globalThis.helmTestCalls.push({ action: 'rollback', revision: input.revision }); },
+      'helm:uninstall': () => { globalThis.helmTestCalls.push({ action: 'uninstall' }); }
+    };
+    for (const [channel, handler] of Object.entries(handlers)) { ipcMain.removeHandler(channel); ipcMain.handle(channel, async (_event, input) => ({ ok: true, data: await handler(input) })); }
+  });
+  await page.locator('.navigator').getByRole('button', { name: 'Charts', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Helm Charts', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'nginx', exact: true }).click();
+  const helmDialog = page.getByRole('dialog', { name: 'Configure Helm release', exact: true });
+  await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeDisabled();
+  await page.getByLabel('Helm release name', { exact: true }).fill('web');
+  await page.getByLabel('Helm values YAML', { exact: true }).fill('replicaCount: 2');
+  await page.getByRole('button', { name: 'Load chart defaults and README', exact: true }).click();
+  await expect(helmDialog).toContainText('Chart defaults');
+  await page.getByRole('button', { name: 'Preview changes', exact: true }).click();
+  await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeEnabled();
+  await page.getByLabel('Helm values YAML', { exact: true }).fill('replicaCount: 3');
+  await expect(helmDialog.getByRole('button', { name: 'Review and apply', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Preview changes', exact: true }).click();
+  await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
+  assert.equal(await app.evaluate(() => globalThis.helmTestCalls.length), 0);
+  await page.getByRole('dialog', { name: 'Confirm Helm operation', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.screenshot({ path: 'artifacts/helm-install.png' });
+  await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
+  await expect(helmDialog).toHaveCount(0);
+  await page.locator('.navigator').getByRole('button', { name: 'Releases', exact: true }).click();
+  await page.getByRole('button', { name: 'web', exact: true }).click();
+  await page.getByRole('button', { name: 'Upgrade / edit values', exact: true }).click();
+  await expect(page.getByLabel('Helm values YAML', { exact: true })).toHaveValue('replicaCount: 2');
+  await expect(page.getByLabel('Helm release name', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Preview changes', exact: true }).click();
+  await page.getByRole('button', { name: 'Review and apply', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
+  await expect(helmDialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'web', exact: true }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await page.getByRole('button', { name: 'Rollback to 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'web', exact: true }).click();
+  await page.getByRole('button', { name: 'Uninstall release', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm Helm operation', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Helm release details', exact: true })).toHaveCount(0);
+  assert.deepEqual(await app.evaluate(() => globalThis.helmTestCalls), [{ action: 'install', values: 'replicaCount: 3' }, { action: 'upgrade', values: 'replicaCount: 2' }, { action: 'rollback', revision: 1 }, { action: 'uninstall' }]);
+  assert.deepEqual(errors, []);
+  console.log('PASS: Helm chart browsing, values editing, preview invalidation, confirmed install/upgrade/rollback/uninstall.');
   console.log('PASS: cluster context menu, hotbar, appearance, connection settings, connect and backed-up context removal.');
   console.log('PASS: overview metrics, workspace tabs, search, scale, restart, cordon, manifest dry-run/apply.');
   console.log('PASS: secure renderer, discovery, LIST/WATCH and expiry recovery, YAML, confirmed write/delete, live logs, native PTY command execution.');

@@ -99,6 +99,17 @@ Common types:
 | `settings:reveal` | {clusterId} | void; reveal source kubeconfig |
 | `cost:read` | {clusterId} | {source,currency,total,window,allocations,warning?} |
 | `monitoring:version` | {component} | {version}; latest stable chart metadata from the fixed community repository, no cluster operation |
+| `helm:repositories` | undefined | HelmRepository[]; Optic-local public sources |
+| `helm:repository-save` | {repository:{name,url},remove} | Updated sources; saves profile and invalidates catalog/preview caches |
+| `helm:charts` | {repository,refresh?} | HelmChart[] with latest stable versions |
+| `helm:versions` | {repository,chart} | {version,appVersion}[] |
+| `helm:chart-info` | {repository,chart,version} | {values,readme}; Helm show |
+| `helm:releases` | {clusterId,namespace?} | HelmRelease[]; paginated list, maximum 10,000 |
+| `helm:details` | HelmTarget | {status,values,manifest,notes,history}; secret-redacted manifests |
+| `helm:preview` | HelmInstall | {token,manifest,resources}; render exact inputs |
+| `helm:apply` | {plan:HelmInstall,token} | void; consume unchanged, unexpired preview and install/upgrade |
+| `helm:rollback` | HelmTarget + {revision} | void; explicit revision rollback |
+| `helm:uninstall` | HelmTarget | void; confirmed release removal |
 | `monitoring:status` | {clusterId} | {name,status,chart}[]; Optic-owned Helm releases |
 | `monitoring:apply` | {clusterId,changes:{component,action,version}[]} | {completed:string[],error?}; ordered operations, partial failures explicit |
 | `nodeshell:open` | {clusterId,node,id,cols,rows} | void; privileged helper pod then managed PTY |
@@ -164,11 +175,11 @@ Zustand tracks workspace tabs and their cluster/namespace scope separately from 
 
 Unit tests cover payload boundaries, resource identity/concurrency constraints, stream ownership/limits, error redaction and crash-state display. The Electron smoke test uses an isolated kubeconfig and local fake Kubernetes API; it checks secure window preferences, resource discovery/watch, detail YAML, confirmed writes, log delivery and a real native PTY.
 
-Live cluster compatibility, external credential-provider combinations, large-cluster load, Windows-container shells and macOS/Linux packaging require environment-specific validation. Prometheus historical dashboards, extension hosting, a general-purpose Helm release manager and detached reconnectable terminals are follow-up scope. No target-native binary is shipped.
+Live cluster compatibility, external credential-provider combinations, large-cluster load, Windows-container shells and macOS/Linux packaging require environment-specific validation. Prometheus historical dashboards, extension hosting and detached reconnectable terminals are follow-up scope. No target-native binary is shipped.
 
 Tooling follows the official [electron-vite configuration model](https://electron-vite.org/guide/) and the installed [Kubernetes JavaScript client](https://github.com/kubernetes-client/javascript) public interfaces. Dependency versions are locked in package-lock.json.
 
-Current validation: 27 unit tests and the expanded source-build Electron integration suite pass. The Windows unpacked build succeeds. Windows Device Guard blocked the rebuilt executable before Playwright could connect; packaged runtime verification is therefore pending an organization-approved signing/deployment path. No security policy was changed.
+Current validation: 39 unit tests and the expanded source-build Electron integration suite pass. The Windows unpacked build succeeds. Windows Device Guard blocked the rebuilt executable before Playwright could connect; packaged runtime verification is therefore pending an organization-approved signing/deployment path. No security policy was changed.
 
 Cluster context menus expose connection checks, settings, local appearance/hotbar preferences and backed-up context removal. Port forwards use shell-free kubectl argv, a 20-second readiness deadline, bounded diagnostic parsing, loopback binding, renderer ownership and context-scoped disposal. Renderer crash recovery and explicit log reconnection are implemented. Windows CI is configured; live-cluster acceptance and signed distribution remain release gates.
 
@@ -180,8 +191,16 @@ ClusterManager applies proxy overrides to the selected SDK KubeConfig. CLI sessi
 
 Providers use authenticated Kubernetes Service-proxy requests to existing Prometheus and OpenCost/Kubecost endpoints. Automatic metrics prefers metrics-server and falls back to Prometheus. Prometheus currently normalizes aggregate/node instant CPU/memory samples, with no historical range-query implementation. Only existing metrics views consume visibility preferences. Cost estimates explicitly use a uniform user-specified USD/node-hour rate, not cloud SKU pricing.
 
-Monitoring runs shell-free Helm commands with explicit chart versions, bounded execution and managed release names. The renderer reviews mutations before invoking apply. Partial completion is returned separately from errors. Only monitoring components are supported; there is no generic Helm manager. Node shells create a privileged helper pod, wait for readiness, then use the existing managed PTY to exec host `nsenter`. Closure deletes the pod using its UID; the active deadline limits execution after unexpected process loss. Crash recovery does not automatically collect stopped helper pods.
+Monitoring runs shell-free Helm commands with explicit chart versions, bounded execution and managed release names. The renderer reviews mutations before invoking apply. Partial completion is returned separately from errors. The monitoring controller manages only its own components; a separate HelmService now supports general chart/release management. Node shells create a privileged helper pod, wait for readiness, then use the existing managed PTY to exec host `nsenter`. Closure deletes the pod using its UID; the active deadline limits execution after unexpected process loss. Crash recovery does not automatically collect stopped helper pods.
 
 Additional error codes include DISCONNECTED and INVALID_DIRECTORY; operational failures use the common sanitized error envelope. Cluster settings, provider response normalization, generated configurations, helper lifecycle and Helm argv are unit-tested. The isolated Electron suite verifies all settings sections, persistence, manual namespaces, disabled metrics, estimates and disconnect/reconnect. Live Helm, proxy and privileged-node compatibility remain acceptance work. See README for dependencies and operational limits.
 
 Chart version lookup uses bounded HTTPS requests to the fixed community repository index, caches it for five minutes, selects the highest non-deprecated stable chart version and autofills Install/upgrade without executing Helm. The reviewed version is passed unchanged to install; failures permit retry or manual entry. See the [Helm show chart reference](https://helm.sh/docs/helm/helm_show_chart/).
+
+## General Helm management
+
+HelmTarget is `{clusterId,namespace,release}`. HelmInstall adds `{action:install|upgrade,repository,chart,version,values}`. HelmService owns profile repositories, five-minute index caches, expiring input-hashed preview tokens, child processes and per-cluster mutation locks. Indexes are bounded to 64 MB, HTTPS without embedded credentials. Only package URLs resolved from the selected index are accepted, over HTTPS or OCI. No shell interpolation or caller-supplied CLI arguments are accepted.
+
+Templates include CRDs and upgrade rendering uses --is-upgrade. Applying uses explicit install or upgrade; upgrade does not silently create a missing release. --reset-values plus the edited user values applies selected chart defaults. Preview captures a package URL/version, not a content digest; changed upstream chart contents and cluster drift can change results. Templates are not server-side validation. Main redacts Secret payloads from rendered/live manifests. Values and notes are intentionally displayed locally and may contain secrets; they are not logged.
+
+Temporary values/config files are removed after child completion, including failure. All parallel detail queries settle before their shared config is removed. Main serializes Helm and monitoring mutations and blocks settings saves, disconnect and context removal during them. This lock is within one application process; external Helm clients are not locked. Application exit kills children, with no automatic recovery/rollback. Public catalog fetches and chart-show commands do not use cluster credentials. Full live release interoperability, private repository credentials, signature verification and durable operation tracking remain unverified or unsupported as documented in README.

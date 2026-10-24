@@ -1,0 +1,83 @@
+import { it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { execFile } from 'node:child_process';
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { HelmService, installArgs, redactManifest, validateValues } from '../src/main/helm';
+import { helmFailure, helmReleaseStatuses } from '../src/main/helm-cli';
+import { schemas } from '../src/main/validation';
+import type { HelmInstall } from '../src/shared/helm';
+vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
+let root: string;
+beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'optic-helm-test-')); vi.resetAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); rmSync(root, { recursive: true, force: true }); });
+const plan: HelmInstall = { clusterId: 'c', namespace: 'team', release: 'web', action: 'install', repository: 'bitnami', chart: 'nginx', version: '2.0.0', values: 'replicaCount: 2' };
+function setup(otherBusy = () => false) {
+ const paths: string[] = [];
+ const clusters = { cliConfig: vi.fn(() => { const dir = mkdtempSync(join(root, 'session-')); const path = join(dir, 'config'); writeFileSync(path, 'private-config'); paths.push(path); return { path, cleanup: () => rmSync(dir, { recursive: true, force: true }) }; }) };
+ const service = new HelmService(clusters as any, join(root, 'repos.json'), otherBusy);
+ vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ apiVersion: 'v1', entries: { nginx: [{ name: 'nginx', version: '1.9.0', urls: ['nginx-1.9.0.tgz'] }, { name: 'nginx', version: '2.0.0', appVersion: '1.27', urls: ['oci://registry.example.com/charts/nginx'] }] } }))));
+ return { service, paths, clusters };
+}
+function respond(fn: (args: string[]) => string) {
+ vi.mocked(execFile).mockImplementation((...args: any[]) => { const output = fn(args[1]); queueMicrotask(() => args.at(-1)(null, output)); return { kill: vi.fn() } as any; });
+}
+it('reads and persists public repository catalogs without executing Helm', async () => {
+ const { service } = setup();
+ expect((await service.charts('bitnami'))[0]).toMatchObject({ name: 'nginx', version: '2.0.0' });
+ expect((await service.versions('bitnami', 'nginx')).map(v => v.version)).toEqual(['2.0.0', '1.9.0']);
+ expect(execFile).not.toHaveBeenCalled();
+ service.saveRepository({ name: 'custom', url: 'https://charts.example.com' });
+ expect(new HelmService({} as any, join(root, 'repos.json')).repositories()).toContainEqual({ name: 'custom', url: 'https://charts.example.com' });
+ expect(schemas['helm:repository-save'].safeParse({ repository: { name: 'x', url: 'https://user:password@example.com' }, remove: false }).success).toBe(false);
+});
+it('pins the exact preview inputs, hides Secret payloads, scopes commands and removes private files', async () => {
+ const { service, paths } = setup();
+ respond(args => {
+  expect(args).toContain('--kubeconfig');
+  const values = args[args.indexOf('--values') + 1]; expect(readFileSync(values, 'utf8')).toBe(plan.values);
+  return args[0] === 'template' ? 'apiVersion: v1\nkind: Secret\nmetadata: {name: test}\ndata: {password: private-value}\n' : '';
+ });
+ const preview = await service.preview(plan);
+ expect(preview.manifest).not.toContain('private-value');
+ await expect(service.apply({ ...plan, values: 'replicaCount: 3' }, preview.token)).rejects.toThrow('Preview');
+ await service.apply(plan, preview.token);
+ expect(vi.mocked(execFile).mock.calls[1][1]).toEqual(expect.arrayContaining(['install', 'web', 'oci://registry.example.com/charts/nginx', '--version', '2.0.0', '--namespace', 'team', '--create-namespace']));
+ expect(paths.every(p => !existsSync(p))).toBe(true);
+ await expect(service.apply(plan, preview.token)).rejects.toThrow('Preview');
+});
+it('keeps upgrades separate from installs and rejects invalid inputs', () => {
+ const args = installArgs({ ...plan, action: 'upgrade' }, 'https://example.com/chart.tgz', 'values.yaml');
+ expect(args[0]).toBe('upgrade'); expect(args).toContain('--reset-values'); expect(args).not.toContain('--install');
+ expect(() => validateValues('- array')).toThrow('mapping'); expect(() => validateValues('key: [bad')).toThrow();
+ expect(schemas['helm:preview'].safeParse({ ...plan, release: '--other' }).success).toBe(false);
+ expect(schemas['helm:rollback'].safeParse({ ...plan, revision: 0 }).success).toBe(false);
+ expect(redactManifest('kind: List\nitems:\n- kind: Secret\n  stringData: {password: sensitive}').manifest).not.toContain('sensitive');
+});
+it('lists releases with namespace scoping and reads release details/history', async () => {
+ const { service } = setup();
+ respond(args => args[0] === 'list' ? JSON.stringify([{ name: 'web', namespace: 'team' }]) : args[0] === 'history' ? '[{"revision":1,"status":"deployed"}]' : args[0] === 'status' ? '{"info":{"status":"deployed"}}' : args[1] === 'values' ? 'replicaCount: 2' : args[1] === 'manifest' ? 'kind: ConfigMap\nmetadata: {name: web}' : 'Release notes');
+ expect(await service.releases('c', 'team')).toHaveLength(1);
+ expect(vi.mocked(execFile).mock.calls[0][1]).toContain('team');
+ expect(vi.mocked(execFile).mock.calls[0][1]).not.toContain('--all');
+ expect(vi.mocked(execFile).mock.calls[0][1]).toEqual(expect.arrayContaining(helmReleaseStatuses));
+ const result = await service.details(plan); expect(result.status).toBe('deployed'); expect(result.history[0].revision).toBe(1); expect(result.notes).toBe('Release notes');
+});
+it('scopes rollback/uninstall, serializes mutations and releases locks after a blocked executable', async () => {
+ const { service, paths } = setup(); respond(() => '');
+ await service.rollback(plan, 2); await service.uninstall(plan);
+ expect(vi.mocked(execFile).mock.calls[0][1]).toEqual(expect.arrayContaining(['rollback', 'web', '2', '--namespace', 'team']));
+ expect(vi.mocked(execFile).mock.calls[1][1]).toEqual(expect.arrayContaining(['uninstall', 'web', '--namespace', 'team']));
+ vi.mocked(execFile).mockImplementation(() => { throw new Error('spawn UNKNOWN'); });
+ await expect(service.uninstall(plan)).rejects.toThrow('application-control'); expect(service.isBusy('c')).toBe(false);
+ expect(paths.every(p => !existsSync(p))).toBe(true);
+ const locked = setup(() => true); await expect(locked.service.uninstall(plan)).rejects.toThrow('already running');
+});
+
+it('classifies Helm failures without disclosing stderr secrets', () => {
+ expect(helmFailure({}, 'context deadline exceeded private-token')).toContain('timed out');
+ expect(helmFailure({}, 'cannot re-use a name that is still in use')).toContain('already exists');
+ expect(helmFailure({}, 'unknown flag: --all')).toContain('does not support');
+ expect(helmFailure({}, 'arbitrary private-token')).not.toContain('private-token');
+ expect(helmFailure({code:'ENOENT'})).toContain('PATH');
+});

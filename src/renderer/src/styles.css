@@ -16,3 +16,33 @@
 .details dl.property-fields{display:block;margin:8px 0}.details dl.property-fields>div{width:100%}.details dl.property-fields dt,.details dl.property-fields dd{min-width:0}
 
 .kubeconfig-paste-editor{display:block;width:100%;height:320px;resize:vertical;font:13px/1.6 Consolas,monospace;white-space:pre;padding:14px;background:#1b1e21}
+
+.helm-page{padding:22px;overflow:auto;height:100%;flex:1;min-width:0;width:100%}.helm-page>header,.helm-modal>header{display:flex;align-items:center;gap:18px;margin-bottom:18px}.helm-page>header button,.helm-modal>header button{margin-left:auto}.helm-toolbar{display:flex;align-items:center;gap:10px;border:0;padding:18px 0}.helm-toolbar input[aria-label="Search Helm"]{flex:1}.helm-table{overflow:auto}.helm-page table{width:100%;border-collapse:collapse;font-size:12px}.helm-page td,.helm-page th{padding:11px;text-align:left;border-bottom:1px solid #39414a;vertical-align:top}.helm-page th{color:#8f9faf}.helm-table td:nth-child(2){max-width:550px}.helm-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:12px}.helm-repositories{background:#292e33;padding:18px;margin-bottom:16px}.helm-repositories>div{display:flex;gap:12px;align-items:center;margin:8px 0}.helm-repositories code{flex:1;overflow-wrap:anywhere}.helm-repositories fieldset{border:0;display:flex;gap:10px}.helm-repositories input{flex:1}.helm-modal{width:min(1000px,90vw);max-height:85vh;overflow:auto;padding:22px;background:#292d32;border:1px solid #525e69;border-radius:5px;box-shadow:0 12px 60px #0009}.helm-modal fieldset{border:0;padding:0}.helm-modal label{display:flex;flex-direction:column;gap:6px}.helm-modal .settings-grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}.helm-values{width:100%;height:230px;font:13px/1.5 Consolas,monospace;resize:vertical;margin:6px 0}.helm-modal pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:340px;overflow:auto;background:#1c2024;padding:14px;font:12px/1.6 Consolas,monospace}.helm-modal footer{display:flex;gap:12px;justify-content:flex-end;align-items:center;margin-top:18px}.helm-modal footer span{margin-right:auto}.helm-modal nav{display:flex;border-bottom:1px solid #49535f;margin-bottom:16px}.helm-modal nav .active{border-bottom:2px solid #429ccc}.helm-detail-content{min-height:200px}.helm-confirm{z-index:30}.helm-modal p{line-height:1.6;margin:10px 0}.helm-modal details{margin:12px 0}.helm-modal summary{cursor:pointer}.helm-detail-content table{width:100%}
+
+.helm-modal>header{position:sticky;top:-22px;background:#292d32;z-index:2;padding:12px 0;border-bottom:1px solid #424b55}.helm-modal>footer{position:sticky;bottom:-22px;background:#292d32;padding:12px 0;border-top:1px solid #424b55;z-index:2}
+
+/* Helm owns its table sizing instead of inheriting resource checkbox columns. */
+.helm-page>header{flex-wrap:wrap;gap:12px}
+.helm-page>header>span{overflow-wrap:anywhere;min-width:0}
+.helm-toolbar{min-width:0;margin:0;flex-wrap:wrap}
+.helm-toolbar>input:first-child,.helm-toolbar>select{width:180px}
+.helm-toolbar input[aria-label="Search Helm"]{flex:1 1 200px}
+.helm-toolbar>span{white-space:nowrap;color:#8f9faf}
+.helm-page th:first-child,.helm-page td:first-child{width:auto}
+.helm-page th button{padding:0;font-size:inherit}
+.helm-page td>button{padding:0;text-align:left;justify-content:flex-start;color:#b9d7ed}
+.helm-table table{table-layout:fixed;min-width:680px}
+.helm-table th,.helm-table td{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+.helm-charts .helm-table th:first-child{width:20%}
+.helm-charts .helm-table th:nth-child(2){width:40%}
+.helm-releases .helm-table th:first-child{width:20%}
+.helm-releases .helm-table th:nth-child(4){width:22%}
+.helm-releases .helm-table th:nth-child(5){width:8%}
+.helm-repositories>div,.helm-repositories fieldset{flex-wrap:wrap;min-width:0}
+.helm-repositories code{min-width:180px}
+.helm-modal fieldset{min-width:0;margin:0}
+.helm-modal label{min-width:0}
+.helm-modal footer{flex-wrap:wrap}
+.helm-detail-content dl{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px}
+.helm-detail-content dd{margin:0;overflow-wrap:anywhere}
+@media(max-width:800px){.helm-page{padding:14px}.helm-modal .settings-grid{grid-template-columns:1fr}.helm-page>header h1{font-size:21px}}

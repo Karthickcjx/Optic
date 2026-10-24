@@ -3,6 +3,7 @@ import { execFile, type ChildProcess } from 'node:child_process';
 import type { ClusterManager } from './clusters';
 import type { MonitoringChange, MonitoringComponent } from '../shared/cluster-settings';
 import { AppError } from './errors';
+import { helmFailure, helmReleaseStatuses } from './helm-cli';
 const repo = 'https://prometheus-community.github.io/helm-charts';
 export function monitoringArgs(change: MonitoringChange): string[] {
   const release = `optic-${change.component}`;
@@ -60,7 +61,7 @@ export class Monitoring {
     const lease = this.clusters.cliConfig(id);
     try {
       return await new Promise<string>((resolve, reject) => {
-        const child = execFile('helm', [...args, '--kubeconfig', lease.path], { windowsHide: true, timeout: 210000, maxBuffer: 2_000_000 }, (error, stdout) => { this.children.delete(child); error ? reject(new AppError('HELM_FAILED', 'Helm operation failed. Check helm on PATH, chart version, RBAC, connectivity and release status. Partial cluster changes may remain.')) : resolve(stdout); });
+        const child = execFile('helm', [...args, '--kubeconfig', lease.path], { windowsHide: true, timeout: 210000, maxBuffer: 2_000_000 }, (error, stdout, stderr) => { this.children.delete(child); error ? reject(new AppError('HELM_FAILED', helmFailure(error, stderr))) : resolve(stdout); });
         this.children.add(child);
       });
     } catch (error) {
@@ -69,7 +70,7 @@ export class Monitoring {
     } finally { lease.cleanup(); }
   }
   async status(id: string) {
-    const entries = JSON.parse(await this.run(id, ['list', '--namespace', 'optic-monitoring', '--all', '--output', 'json']));
+    const entries = JSON.parse(await this.run(id, ['list', '--namespace', 'optic-monitoring', ...helmReleaseStatuses, '--output', 'json']));
     return entries.filter((e: any) => /^optic-(prometheus|kube-state-metrics|prometheus-node-exporter)$/.test(e.name)).map((e: any) => ({ name: String(e.name), status: String(e.status), chart: String(e.chart) }));
   }
   isBusy(id: string) { return this.busy.has(id); }

@@ -1,3 +1,4 @@
+import type { HelmRepository, HelmChart, HelmRelease, HelmTarget, HelmInstall, HelmDetails, HelmPreview } from './helm';
 import type { ClusterSettings, CostResult, MonitoringChange, MonitoringComponent } from './cluster-settings';
 import { resourceKinds, type CustomType } from './catalog';
 export { resourceKinds } from './catalog';
@@ -20,6 +21,18 @@ export type StreamEvent =
   | { id: string; type: 'error'; error: Fault }
   | { id: string; type: 'end'; exitCode?: number };
 export interface Requests {
+  'helm:repositories': { input: undefined; output: HelmRepository[] };
+  'helm:repository-save': { input: { repository: HelmRepository; remove: boolean }; output: HelmRepository[] };
+  'helm:charts': { input: { repository: string; refresh?: boolean }; output: HelmChart[] };
+  'helm:versions': { input: { repository: string; chart: string }; output: { version: string; appVersion: string }[] };
+  'helm:chart-info': { input: { repository: string; chart: string; version: string }; output: { values: string; readme: string } };
+  'helm:releases': { input: { clusterId: string; namespace?: string }; output: HelmRelease[] };
+  'helm:details': { input: HelmTarget; output: HelmDetails };
+  'helm:preview': { input: HelmInstall; output: HelmPreview };
+  'helm:apply': { input: { plan: HelmInstall; token: string }; output: void };
+  'helm:rollback': { input: HelmTarget & { revision: number }; output: void };
+  'helm:uninstall': { input: HelmTarget; output: void };
+
   'settings:get': { input: { clusterId: string }; output: ClusterSettings };
   'settings:save': { input: { clusterId: string; settings: ClusterSettings }; output: ClusterSettings };
   'settings:directory': { input: undefined; output: string | undefined };
@@ -54,7 +67,7 @@ export interface Requests {
   'stream:ack': { input: { id: string; seq: number }; output: void };
   'stream:close': { input: { id: string }; output: void };
 }
-export const channels: (keyof Requests)[] = ['settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
+export const channels: (keyof Requests)[] = ['helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 export interface DesktopAPI {
   request<K extends keyof Requests>(channel: K, input: Requests[K]['input']): Promise<Result<Requests[K]['output']>>;
   subscribe(listener: (event: StreamEvent) => void): () => void;
