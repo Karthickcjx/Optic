@@ -209,6 +209,9 @@ try {
   await capture('16-node-management');
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect.poll(() => requests.some(r => r.method === 'PATCH' && r.path === '/api/v1/nodes/worker-1')).toBe(true);
+  // On smaller displays the details drawer overlays the resource toolbar.
+  await page.getByTitle('Close details', { exact: true }).click();
+  await expect(page.locator('.details')).toHaveCount(0);
   await page.getByTitle('Create resource', { exact: true }).click();
   await page.getByRole('button', { name: 'Apply to cluster', exact: true }).isDisabled().then(value => assert.equal(value, true));
   await page.getByRole('button', { name: 'Validate manifest', exact: true }).click();
@@ -433,6 +436,8 @@ current-context: pasted-context
   console.log('PASS: secure renderer, discovery, LIST/WATCH and expiry recovery, YAML, confirmed write/delete, live logs, native PTY command execution.');
 } catch (error) {
   if (app) {
+    await mkdir('artifacts', { recursive: true });
+    await (await app.firstWindow()).screenshot({ path: 'artifacts/smoke-failure.png' }).catch(() => {});
     console.error('Mock API requests:', requests);
     console.error('Mock SDK diagnostic:', await app.evaluate(async (_electron, modulePath) => {
       try { const require = process.getBuiltinModule('module').createRequire(process.cwd() + '/package.json'); const { KubeConfig, VersionApi } = require('@kubernetes/client-node'); const config = new KubeConfig(); config.loadFromFile(process.env.WORKBENCH_KUBECONFIG); return await config.makeApiClient(VersionApi).getCode(); }
