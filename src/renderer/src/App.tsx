@@ -31,7 +31,7 @@ function ResourcePage({ onCreate }: { onCreate: () => void }) {
   const data = useResources(store.clusterId, store.kind, namespace, store.custom);
   const namespaces = useResources(manual.length ? '' : store.clusterId, 'namespaces');
   const namespaceNames = [...new Set([...manual, ...namespaces.items.map(n => n.metadata.name!)])];
-  const selected = store.selected && data.items.find(r => r.metadata.uid === store.selected?.metadata.uid);
+  const selected = store.selected && (data.items.find(r => r.metadata.uid === store.selected?.metadata.uid) ?? (data.loading ? store.selected : undefined));
   const label = store.kind === 'custom' ? store.custom?.kind ?? 'Resources' : catalog[store.kind].label;
   return <div className="resource-area"><section className="resource-panel">{data.error && <div className="inline-error">{data.error}<button onClick={data.refresh}>Retry</button></div>}<ResourceTable key={store.activePage} items={data.items} loading={data.loading} onSelect={store.select} selectedId={store.selected?.metadata.uid} kind={store.kind} label={label} controls={<><select aria-label="Namespace" value={namespace} onChange={e => store.setNamespace(e.target.value)}>{!manual.length && <option value="">All namespaces</option>}{namespaceNames.map(name => <option key={name} value={name}>{name}</option>)}</select>{namespaces.error && <span title={namespaces.error} className="warning-text">!</span>}</>} actions={<><button title="Refresh resources" onClick={data.refresh}><RefreshCw size={15} className={data.loading ? 'spin' : ''}/></button><button title="Create resource" onClick={onCreate}><Plus size={17}/></button></>}/></section>{selected && <Details key={`${store.activePage}:${selected.metadata.uid}`} resource={selected}/>}</div>;
 }

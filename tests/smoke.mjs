@@ -7,6 +7,9 @@ import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'workbench-smoke-'));
 const requests = [], sockets = new Set(), watchers = new Set();
 const pod = { apiVersion: 'v1', kind: 'Pod', metadata: { uid: 'pod-1', name: 'api-gateway', namespace: 'default', resourceVersion: '10', creationTimestamp: new Date(Date.now() - 3600000).toISOString(), labels: { app: 'gateway', environment: 'test' } }, spec: { nodeName: 'worker-1', containers: [{ name: 'server', image: 'example/gateway:1.0' }] }, status: { phase: 'Running' } };
+const deployment = { apiVersion: 'apps/v1', kind: 'Deployment', metadata: { name: 'web', namespace: 'default', uid: 'dep-1', annotations: { 'deployment.kubernetes.io/revision': '2' } }, spec: { replicas: 2 }, status: { readyReplicas: 2 } };
+const replicaSet = { apiVersion: 'apps/v1', kind: 'ReplicaSet', metadata: { name: 'web-rs', namespace: 'default', uid: 'rs-1', annotations: { 'deployment.kubernetes.io/revision': '2' }, ownerReferences: [{ apiVersion: 'apps/v1', kind: 'Deployment', name: 'web', uid: 'dep-1', controller: true }] }, spec: { replicas: 2 }, status: { readyReplicas: 2 } };
+pod.metadata.ownerReferences = [{ apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'web-rs', uid: 'rs-1', controller: true }];
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost'); requests.push({ method: req.method, path: url.pathname, query: url.search });
   res.setHeader('Content-Type', 'application/json');
@@ -21,7 +24,9 @@ const server = createServer(async (req, res) => {
     if (req.method === 'DELETE') return res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Success' }));
     return res.end(JSON.stringify(pod));
   }
-  const items = url.pathname.endsWith('/deployments') ? [{ apiVersion: 'apps/v1', kind: 'Deployment', metadata: { name: 'web', namespace: 'default', uid: 'dep-1' }, spec: { replicas: 2 }, status: { readyReplicas: 2 } }] : url.pathname === '/api/v1/nodes' ? [{ apiVersion: 'v1', kind: 'Node', metadata: { name: 'worker-1', uid: 'node-1' }, status: { allocatable: { cpu: '4', memory: '8Gi', pods: '110' }, conditions: [{ type: 'Ready', status: 'True' }] } }] : url.pathname.endsWith('/pods') ? [pod] : url.pathname.endsWith('/namespaces') ? [{ apiVersion: 'v1', kind: 'Namespace', metadata: { name: 'default', uid: 'ns-1' } }] : [];
+  if (url.pathname.endsWith('/deployments/web')) return res.end(JSON.stringify(deployment));
+  if (url.pathname.endsWith('/replicasets/web-rs')) return res.end(JSON.stringify(replicaSet));
+  const items = url.pathname.endsWith('/replicasets') ? [replicaSet] : url.pathname.endsWith('/deployments') ? [deployment] : url.pathname === '/api/v1/nodes' ? [{ apiVersion: 'v1', kind: 'Node', metadata: { name: 'worker-1', uid: 'node-1' }, status: { allocatable: { cpu: '4', memory: '8Gi', pods: '110' }, conditions: [{ type: 'Ready', status: 'True' }] } }] : url.pathname.endsWith('/pods') ? [pod] : url.pathname.endsWith('/namespaces') ? [{ apiVersion: 'v1', kind: 'Namespace', metadata: { name: 'default', uid: 'ns-1' } }] : [];
   res.end(JSON.stringify({ apiVersion: 'v1', kind: 'List', metadata: { resourceVersion: '10' }, items }));
 });
 server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
@@ -54,6 +59,17 @@ try {
   assert.equal(prefs.contextIsolation, true); assert.equal(prefs.nodeIntegration, false); assert.equal(prefs.sandbox, true);
   await page.getByText('api-gateway', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'api-gateway' })).toBeVisible();
+  await page.getByRole('button', { name: 'Related', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'ReplicaSet / web-rs', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Deployment / web', exact: true }).click();
+  await expect(page.locator('.details h2')).toHaveText('web');
+  await page.getByRole('button', { name: 'Related', exact: true }).click();
+  await expect(page.locator('.related-resources')).toContainText('2 (current)');
+  await page.locator('.related-resources').getByRole('button', { name: 'web-rs', exact: true }).click();
+  await expect(page.locator('.details h2')).toHaveText('web-rs');
+  await page.getByRole('button', { name: 'Related', exact: true }).click();
+  await page.locator('.related-resources').getByRole('button', { name: 'api-gateway', exact: true }).click();
+  await expect(page.locator('.details h2')).toHaveText('api-gateway');
   await page.getByRole('button', { name: 'Logs', exact: true }).click();
   await expect(page.locator('.logs')).toContainText('gateway ready');
   await page.getByLabel('Previous container', { exact: true }).check();
@@ -88,9 +104,9 @@ try {
   await mkdir('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/dashboard.png' });
   for (const response of watchers) response.write(`${JSON.stringify({ type: 'MODIFIED', object: { ...pod, status: { phase: 'Pending' } } })}\n`);
   await expect(page.locator('tbody')).toContainText('Pending'); assert.deepEqual(errors, []);
-  const listsBefore = requests.filter(r => r.path === '/api/v1/pods').length;
+  const listsBefore = requests.filter(r => r.path.endsWith('/pods')).length;
   for (const response of watchers) response.write(`${JSON.stringify({ type: 'ERROR', object: { code: 410, reason: 'Expired' } })}\n`);
-  await expect.poll(() => requests.filter(r => r.path === '/api/v1/pods').length, { timeout: 10000 }).toBeGreaterThan(listsBefore);
+  await expect.poll(() => requests.filter(r => r.path.endsWith('/pods')).length, { timeout: 10000 }).toBeGreaterThan(listsBefore);
   await expect(page.locator('tbody')).toContainText('Running');
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   assert.equal(requests.some(r => r.method === 'DELETE'), false);

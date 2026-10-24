@@ -55,6 +55,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'resources:scale': input => resources.scale(input, input.replicas),
     'nodes:cordon': input => resources.cordon(input.clusterId, input.name, input.unschedulable),
     'clusters:list': () => clusters.discover(), 'clusters:health': input => clusters.health(input.clusterId),
+    'resources:get': input => resources.get(input),
     'resources:list': input => resources.list(input),
     'resources:watch': (input, owner) => {
       clusters.get(input.clusterId);

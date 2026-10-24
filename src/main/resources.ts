@@ -32,6 +32,7 @@ export function validateReplacement(target: Target, document: Resource) {
 export class ResourceService {
   constructor(private clusters: ClusterManager) {}
   private config(id: string) { return this.clusters.get(id).config; }
+  async get(target: Target) { return this.normalize(target, await kubeJson<Resource>(this.config(target.clusterId), targetPath(target))); }
   async list(scope: Scope) { return (await this.listVersioned(scope)).items; }
   private async listVersioned(scope: Scope, signal?: AbortSignal): Promise<{ items: Resource[]; version?: string }> {
     const items: Resource[] = []; let continuation = '', version: string | undefined;

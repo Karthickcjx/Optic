@@ -67,3 +67,11 @@
 .resource-row.severity-error.selected{background:#43363e}
 .log-line.severity-error{color:#ff9299;background:#512d3440}
 .log-line.severity-warning{color:#e6bd70}
+
+.related-resources{display:flex;flex-direction:column;gap:12px;min-width:0}
+.owner-chain{list-style:none;padding:0;margin:0}
+.owner-chain button,.related-table button{color:#86c8f2;white-space:normal;overflow-wrap:anywhere;text-align:left;justify-content:flex-start;padding:4px 0}
+.related-table{overflow:auto}
+.related-table th,.related-table td{padding:8px;max-width:200px;white-space:normal;overflow-wrap:anywhere}
+.related-table th:first-child,.related-table td:first-child{width:auto}
+.detail-tabs{flex-wrap:wrap}

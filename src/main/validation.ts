@@ -39,7 +39,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'resources:scale': target.extend({ replicas: z.number().int().min(0).max(10000) }),
   'nodes:cordon': z.object({ clusterId: text, name, unschedulable: z.boolean() }),
   'clusters:list': z.undefined(), 'clusters:health': z.object({ clusterId: text }),
-  'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
+  'resources:get': target, 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
   'resources:replace': target.extend({ yaml: z.string().min(1).max(2_000_000) }),
   'resources:delete': target, 'resources:restart': target,
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional() }),
