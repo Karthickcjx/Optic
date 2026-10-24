@@ -13,6 +13,15 @@ export const catalog = {
   poddisruptionbudgets: { label: 'Pod Disruption Budgets', kind: 'PodDisruptionBudget', apiVersion: 'policy/v1', namespaced: true, group: 'Config' },
   resourcequotas: { label: 'Resource Quotas', kind: 'ResourceQuota', apiVersion: 'v1', namespaced: true, group: 'Config' },
   limitranges: { label: 'Limit Ranges', kind: 'LimitRange', apiVersion: 'v1', namespaced: true, group: 'Config' },
+  priorityclasses: { label: 'Priority Classes', kind: 'PriorityClass', apiVersion: 'scheduling.k8s.io/v1', namespaced: false, group: 'Config' },
+  runtimeclasses: { label: 'Runtime Classes', kind: 'RuntimeClass', apiVersion: 'node.k8s.io/v1', namespaced: false, group: 'Config' },
+  leases: { label: 'Leases', kind: 'Lease', apiVersion: 'coordination.k8s.io/v1', namespaced: true, group: 'Config' },
+  mutatingwebhookconfigurations: { label: 'Mutating Webhook Configurations', kind: 'MutatingWebhookConfiguration', apiVersion: 'admissionregistration.k8s.io/v1', namespaced: false, group: 'Config' },
+  validatingwebhookconfigurations: { label: 'Validating Webhook Configurations', kind: 'ValidatingWebhookConfiguration', apiVersion: 'admissionregistration.k8s.io/v1', namespaced: false, group: 'Config' },
+  validatingadmissionpolicies: { label: 'Validating Admission Policies', kind: 'ValidatingAdmissionPolicy', apiVersion: 'admissionregistration.k8s.io/v1', namespaced: false, group: 'Admission Policies' },
+  validatingadmissionpolicybindings: { label: 'Validating Admission Policy Bindings', kind: 'ValidatingAdmissionPolicyBinding', apiVersion: 'admissionregistration.k8s.io/v1', namespaced: false, group: 'Admission Policies' },
+  mutatingadmissionpolicies: { label: 'Mutating Admission Policies', kind: 'MutatingAdmissionPolicy', apiVersion: 'admissionregistration.k8s.io/v1beta1', namespaced: false, group: 'Admission Policies' },
+  mutatingadmissionpolicybindings: { label: 'Mutating Admission Policy Bindings', kind: 'MutatingAdmissionPolicyBinding', apiVersion: 'admissionregistration.k8s.io/v1beta1', namespaced: false, group: 'Admission Policies' },
   services: { label: 'Services', kind: 'Service', apiVersion: 'v1', namespaced: true, group: 'Network' },
   endpoints: { label: 'Endpoints', kind: 'Endpoints', apiVersion: 'v1', namespaced: true, group: 'Network' },
   ingresses: { label: 'Ingresses', kind: 'Ingress', apiVersion: 'networking.k8s.io/v1', namespaced: true, group: 'Network' },
@@ -32,5 +41,5 @@ export const catalog = {
 } as const;
 export type BuiltinKind = keyof typeof catalog;
 export interface CustomType { apiVersion: string; kind: string; plural: string; namespaced: boolean }
-export type View = BuiltinKind | 'custom' | 'overview' | 'welcome' | 'settings' | 'cluster-settings' | 'helm-charts' | 'helm-releases';
+export type View = BuiltinKind | 'custom' | 'applications' | 'overview' | 'welcome' | 'settings' | 'cluster-settings' | 'helm-charts' | 'helm-releases';
 export const resourceKinds = [...Object.keys(catalog), 'custom'] as unknown as [BuiltinKind | 'custom', ...(BuiltinKind | 'custom')[]];

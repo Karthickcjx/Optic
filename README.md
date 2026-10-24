@@ -22,6 +22,12 @@ The app reads `~/.kube/config` and `KUBECONFIG`. Use the reload button after cha
 
 Select a resource to open its details. Pod container cards open logs or a shell. Workload details offer rollout restart and scaling where supported; Node details offer cordon/uncordon. Delete, YAML save and restart show confirmation before changing the cluster. Local terminals are available even without a kubeconfig. Pod shell currently requires `/bin/sh` in the container.
 
+## Applications and configuration navigation
+
+Applications groups live Pods, Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Services by application labels within each namespace. Search and namespace filters narrow the results; resource links open the existing detail drawer. Resources without application labels stay in their normal resource lists. Permission failures are displayed per resource type, so partial results are explicit.
+
+Config includes Priority Classes, Runtime Classes, Leases, Mutating/Validating Webhook Configurations, and a nested Admission Policies section with validating/mutating policies and bindings. These use the existing Kubernetes list/watch, details, YAML editing and confirmed deletion flows. Validating policies use `admissionregistration.k8s.io/v1`; mutating policies use `v1beta1` for Kubernetes 1.34/1.35 compatibility. The selected cluster must serve these APIs and permit access; Optic does not enable cluster feature gates automatically.
+
 ## Validate and package
 
 ```sh

@@ -60,6 +60,22 @@ try {
     await capture('01-welcome');
   }
   const errors = []; page.on('pageerror', e => errors.push(e.message));
+  // Search must reveal nested policy entries even when Config is collapsed.
+  await page.getByLabel('Find in Navigator', { exact: true }).fill('Validating Admission Policy Bindings');
+  await page.locator('.navigator').getByRole('button', { name: 'Validating Admission Policy Bindings', exact: true }).click();
+  await expect.poll(() => requests.some(r => r.path === '/apis/admissionregistration.k8s.io/v1/validatingadmissionpolicybindings')).toBe(true);
+  await page.getByLabel('Find in Navigator', { exact: true }).fill('Leases');
+  await page.locator('.navigator').getByRole('button', { name: 'Leases', exact: true }).click();
+  await expect.poll(() => requests.some(r => r.path.endsWith('/leases'))).toBe(true);
+  await page.getByLabel('Find in Navigator', { exact: true }).fill('');
+  await page.locator('.navigator').getByRole('button', { name: 'Applications', exact: true }).click();
+  await expect(page.locator('.application-card')).toContainText('gateway');
+  await mkdir('artifacts', { recursive: true });
+  await page.screenshot({ path: 'artifacts/applications.png' });
+  await page.locator('.application-card').getByRole('button', { name: 'api-gateway', exact: true }).click();
+  await expect(page.locator('.details h2')).toHaveText('api-gateway');
+  await page.getByTitle('Close details', { exact: true }).click();
+
   await page.getByRole('button', { name: 'Pods', exact: true }).click();
   await expect(page.getByText('api-gateway', { exact: true })).toBeVisible({ timeout: 20000 });
   await capture('02-pods');

@@ -39,6 +39,12 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
     if (kind === 'services') result.push(textColumn('type', 'Type', r => r.spec?.type), textColumn('ip', 'Cluster IP', r => r.spec?.clusterIP), textColumn('ports', 'Ports', r => r.spec?.ports?.map((p: any) => `${p.port}/${p.protocol}`).join(', ')));
     if (kind === 'ingresses') result.push(textColumn('hosts', 'Hosts', r => r.spec?.rules?.map((rule: any) => rule.host).join(', ')), textColumn('class', 'Class', r => r.spec?.ingressClassName));
     if (kind === 'persistentvolumeclaims') result.push(textColumn('capacity', 'Capacity', r => r.status?.capacity?.storage), textColumn('storage', 'Storage class', r => r.spec?.storageClassName));
+    if (kind === 'priorityclasses') result.push(textColumn('value', 'Priority', r => r.value), textColumn('default', 'Global default', r => r.globalDefault ?? false), textColumn('preemption', 'Preemption policy', r => r.preemptionPolicy ?? 'PreemptLowerPriority'));
+    if (kind === 'runtimeclasses') result.push(textColumn('handler', 'Handler', r => r.handler));
+    if (kind === 'leases') result.push(textColumn('holder', 'Holder', r => r.spec?.holderIdentity), textColumn('duration', 'Duration (s)', r => r.spec?.leaseDurationSeconds), textColumn('renew', 'Renew time', r => r.spec?.renewTime));
+    if (kind.endsWith('webhookconfigurations')) result.push(textColumn('webhooks', 'Webhooks', r => r.webhooks?.length ?? 0));
+    if (kind.endsWith('admissionpolicies')) result.push(textColumn('failure', 'Failure policy', r => r.spec?.failurePolicy ?? 'Fail'), textColumn('checks', 'Expressions', r => (r.spec?.validations ?? r.spec?.mutations)?.length ?? 0));
+    if (kind.endsWith('admissionpolicybindings')) result.push(textColumn('policy', 'Policy', r => r.spec?.policyName), textColumn('actions', 'Validation actions', r => r.spec?.validationActions?.join(', ')));
     if (kind === 'events') result.push(textColumn('reason', 'Reason', r => r.reason), textColumn('message', 'Message', r => r.message), textColumn('count', 'Count', r => r.count));
     if (kind === 'customresourcedefinitions') result.push(textColumn('group', 'Group', r => r.spec?.group), textColumn('scope', 'Scope', r => r.spec?.scope));
     result.push(textColumn('age', 'Age', r => age(r.metadata.creationTimestamp)), { id: 'status', header: 'Status', accessorFn: resourceStatus, cell: ctx => <Status resource={ctx.row.original}/> });

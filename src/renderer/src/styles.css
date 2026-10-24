@@ -85,3 +85,11 @@
 .drawer-metric svg text{font-size:10px;fill:#a6b2bf}
 .drawer-metric>p{min-height:60px;line-height:1.6}
 .metric-legend{display:flex;gap:15px;font-size:11px}
+
+.applications-page { overflow: auto; height: 100%; padding: 24px; }
+.applications-page > header { display: flex; align-items: center; justify-content: space-between; }
+.application-card { margin-top: 20px; border: 1px solid var(--border, #373d42); padding: 16px; }
+.application-card h2 { font-size: 16px; }
+.application-card small { font-size: 12px; color: #9ca9b5; margin-left: 12px; }
+.application-card table { width: 100%; }
+.application-card th, .application-card td { padding: 8px; text-align: left; }
