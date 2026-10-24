@@ -93,7 +93,7 @@ Settings validation/persistence, isolated CLI configuration, provider responses,
 
 Overview graphs include timestamp and value axes, absolute or percentage units, and 5/15/30/60-minute windows of locally observed samples. Select all nodes, control-plane/master nodes, workers, or a specific node; gauges and resource requests/limits follow the selection. Prometheus node names or instance addresses must match Kubernetes node identities for scoped metrics. Unmatched aggregates are not attributed to individual nodes. These windows do not query historical Prometheus data.
 
-Resource drawers now include conditions, owners, annotations, detailed pod/container health and scheduling, probes, mounts and resource budgets; workload rollout/templates; and node, networking, storage and access-rule properties. Expand sections to inspect structured fields. See RESOURCE_DETAILS_INSPECTION.md for the observed Lens comparison and remaining gaps.
+Resource drawers now include conditions, owners, annotations, detailed pod/container health and scheduling, probes, mounts and resource budgets; workload rollout/templates; and node, networking, storage and access-rule properties. Expand sections to inspect structured fields.
 
 Add kubeconfig offers filesystem and clipboard imports from the Navigator + menu, Welcome and Preferences. The clipboard option opens an editor for pasting and reviewing YAML before Add Clusters. Submitted text is validated in main and saved in the application profile kubeconfigs directory. Exact repeat imports reuse the saved file. Use embedded credentials or absolute certificate/key paths; relative paths require filesystem import. Only import trusted kubeconfigs because authentication plugins can execute locally.
 
@@ -124,3 +124,6 @@ Prometheus uses bounded range queries through the selected cluster's service pro
 Automatic source selection tries Prometheus then Metrics Server. Metrics Server provides CPU/memory snapshots, accumulated only while the drawer remains open; network and filesystem explicitly show unavailable. Named-container views omit shared Pod network traffic. Container filesystem usage is not PVC capacity. Missing series are not displayed as zero. Resource metrics honor disabled/hidden metric categories, bound workloads to 200 Pods, and stop refreshing when the tab closes. Upstream permission failures surface in the drawer; stale samples remain labelled after request failures.
 
 References: [Kubernetes resource metrics pipeline](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/) and [Prometheus range-query API](https://prometheus.io/docs/prometheus/latest/querying/api/).
+
+## Application assets
+The user-provided transparent logo is in resources/logo.png. resources/icon.ico and resources/icon.icns are its Windows and macOS packaging conversions. All three assets are used by the app or packaging configuration.

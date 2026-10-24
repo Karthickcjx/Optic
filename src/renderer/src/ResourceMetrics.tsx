@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Resource, Target } from '../../shared/protocol';
-import { emptyMetricSeries, type MetricKey, type MetricPoint, type ResourceMetricResult } from '../../shared/resource-metrics';
+import { emptyMetricSeries, type MetricKey, type ResourceMetricResult } from '../../shared/resource-metrics';
 import { memory } from '../../shared/quantities';
 import { request } from './api';
 
