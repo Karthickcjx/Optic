@@ -10,6 +10,8 @@ export function monitoringArgs(change: MonitoringChange): string[] {
   if (change.action === 'uninstall') return ['uninstall', release, '--namespace', 'optic-monitoring', '--wait', '--timeout', '3m'];
   const args = ['upgrade', '--install', release, change.component, '--repo', repo, '--version', change.version, '--namespace', 'optic-monitoring', '--create-namespace', '--wait', '--timeout', '3m'];
   if (change.component === 'prometheus') args.push('--set', 'alertmanager.enabled=false,kube-state-metrics.enabled=false,prometheus-node-exporter.enabled=false,prometheus-pushgateway.enabled=false');
+  // Exporter startup can race the chart's zero-delay probes before :9100 binds.
+  if (change.component === 'prometheus-node-exporter') args.push('--set', 'readinessProbe.initialDelaySeconds=5,readinessProbe.timeoutSeconds=3,livenessProbe.initialDelaySeconds=10,livenessProbe.timeoutSeconds=3');
   return args;
 }
 export class Monitoring {

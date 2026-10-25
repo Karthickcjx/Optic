@@ -25,4 +25,9 @@ it('builds pinned opt-in monitoring commands scoped to Optic releases', () => {
   expect(args).toContain('optic-prometheus'); expect(args).toContain('27.0.0'); expect(args).toContain('optic-monitoring');
   expect(args.join(' ')).toContain('kube-state-metrics.enabled=false');
   expect(monitoringArgs({ component: 'prometheus-node-exporter', action: 'uninstall', version: '' })).toContain('optic-prometheus-node-exporter');
+  const exporter = monitoringArgs({ component: 'prometheus-node-exporter', action: 'install', version: '4.60.0' });
+  expect(exporter).toContain('4.60.0');
+  expect(exporter.join(' ')).toContain('readinessProbe.initialDelaySeconds=5');
+  expect(exporter.join(' ')).toContain('livenessProbe.initialDelaySeconds=10');
+  expect(exporter.join(' ')).toContain('readinessProbe.timeoutSeconds=3');
 });
