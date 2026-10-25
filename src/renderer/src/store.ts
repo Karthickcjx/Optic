@@ -1,8 +1,9 @@
+import type { LogOptions } from '../../shared/logs';
 import type { ClusterSettings } from '../../shared/cluster-settings';
 import { create } from 'zustand';
 import { catalog, type CustomType, type View } from '../../shared/catalog';
 import type { Cluster, PodTarget, Resource, ResourceKind, Requests, TerminalOptions } from '../../shared/protocol';
-export interface DockTab { id: string; type: 'terminal' | 'logs' | 'forward'; title: string; options: TerminalOptions | PodTarget | Omit<Requests['forward:start']['input'], 'id'> }
+export interface DockTab { id: string; type: 'terminal' | 'logs' | 'forward'; title: string; options: TerminalOptions | PodTarget | LogOptions | Omit<Requests['forward:start']['input'], 'id'> }
 export interface WorkspaceTab { id: string; view: View; clusterId: string; namespace: string; custom?: CustomType }
 interface State {
   clusterSettings: Record<string, ClusterSettings>; revision: number;

@@ -17,9 +17,9 @@ export class Streams {
   }
   emit(id: string, event: StreamEvent) { const s = this.sessions.get(id); if (s && !s.owner.isDestroyed()) s.owner.send('stream:event', event); }
   error(id: string, error: unknown) { this.emit(id, { id, type: 'error', error: fault(error) }); }
-  end(id: string, exitCode?: number) { this.emit(id, { id, type: 'end', exitCode }); this.close(id); }
+  end(id: string, exitCode?: number, reason?: 'closed') { this.emit(id, { id, type: 'end', exitCode, ...(reason ? { reason } : {}) }); this.close(id); }
   close(id: string) { const s = this.sessions.get(id); this.sessions.delete(id); s?.dispose(); }
   closeOwner(owner: WebContents) { for (const [id, s] of this.sessions) if (s.owner.id === owner.id) this.close(id); }
-  closeCluster(clusterId: string) { for (const [id, s] of this.sessions) if (s.clusterId === clusterId) this.close(id); }
+  closeCluster(clusterId: string) { for (const [id, s] of this.sessions) if (s.clusterId === clusterId) this.end(id, undefined, 'closed'); }
   closeAll() { for (const id of this.sessions.keys()) this.close(id); }
 }

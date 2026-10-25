@@ -44,7 +44,7 @@ export class SessionService {
       if (!container) throw new AppError('NO_CONTAINER', 'No container is available.');
       controller = new AbortController();
       const url = new URL(`${config.getCurrentCluster()!.server}/api/v1/namespaces/${encodeURIComponent(options.namespace)}/pods/${encodeURIComponent(options.pod)}/log`);
-      url.search = new URLSearchParams({ container, follow: String(!options.previous), previous: String(options.previous ?? false), tailLines: String(options.tailLines ?? 500), timestamps: 'true' }).toString();
+      url.search = new URLSearchParams({ container, follow: String(!options.previous), previous: String(options.previous ?? false), ...(options.sinceTime ? { sinceTime: options.sinceTime } : { tailLines: String(options.tailLines ?? 500) }), timestamps: 'true' }).toString();
       const context = new RequestContext(url.href, HttpMethod.GET);
       await config.applySecurityAuthentication(context);
       if (stopped) return;
@@ -58,7 +58,7 @@ export class SessionService {
       });
     } catch (error) { if (!stopped) this.streams.close(id); throw error; }
   }
-  async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand: string[] = ['/bin/sh']) {
+  async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand?: string[]) {
     const { id } = options;
     let file = process.platform === 'win32' ? (process.env.COMSPEC ?? 'cmd.exe') : (process.env.SHELL ?? '/bin/sh');
     let args: string[] = [];
@@ -72,7 +72,7 @@ export class SessionService {
       file = process.platform === 'win32' ? 'kubectl.exe' : 'kubectl';
       args = ['--kubeconfig', lease!.path, '--context', cluster.name, '--namespace', options.namespace!, 'exec', '-it', options.pod];
       if (options.container) args.push('-c', options.container);
-      args.push('--', ...remoteCommand);
+      args.push('--', ...(remoteCommand ?? [options.shell ?? lease?.settings.containerShell ?? '/bin/sh']));
     }
     let worker: ReturnType<typeof utilityProcess.fork>;
     try { worker = utilityProcess.fork(join(dirname(fileURLToPath(import.meta.url)), 'pty-worker.js'), [], { serviceName: 'Optic terminal', stdio: 'pipe' }); }

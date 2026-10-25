@@ -1,3 +1,4 @@
+import { LogSourceDialog } from './LogSourceDialog';
 import { useEffect, useState } from 'react';
 import { catalog } from '../../shared/catalog';
 import type { Resource } from '../../shared/protocol';
@@ -10,6 +11,7 @@ import { Status } from './Table';
 const podKinds = ['Deployment', 'ReplicaSet', 'StatefulSet', 'DaemonSet', 'ReplicationController', 'Job', 'CronJob', 'Service', 'Node', 'PersistentVolumeClaim'];
 type Owner = { label: string; resource?: Resource; error?: string; depth: number };
 export function RelatedResources({ resource, clusterId }: { resource: Resource; clusterId: string }) {
+  const [logPicker, setLogPicker] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]), [ownerLoading, setOwnerLoading] = useState(false), [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const showPods = podKinds.includes(resource.kind ?? '');
@@ -49,7 +51,8 @@ export function RelatedResources({ resource, clusterId }: { resource: Resource; 
   return <div className="related-resources"><button onClick={() => { setRefresh(v => v + 1); pods.refresh(); intermediates.refresh(); }}>Refresh relationships</button>
     {error && <p className="inline-error">{error}</p>}
     <h3>Owner chain</h3>{ownerLoading ? <p>Loading owners…</p> : !owners.length ? <p className="muted">No owner references.</p> : <ul className="owner-chain">{owners.map((owner, i) => <li key={i} style={{ marginLeft: owner.depth * 10 }}><button disabled={!owner.resource} onClick={() => owner.resource && open(owner.resource)}>{owner.label}</button>{owner.error && <p className="inline-error">{owner.error}</p>}</li>)}</ul>}
-    {showPods && <><h3>Related Pods ({related.length})</h3>{pods.error && <p className="inline-error">{pods.error}</p>}{intermediates.error && <p className="inline-error">{intermediates.error}</p>}{pods.loading || intermediates.loading ? <p>Loading related Pods…</p> : <><div className="related-table"><table><thead><tr><th>Pod</th><th>Ready</th><th>Status</th><th>Node</th></tr></thead><tbody>{related.map(pod => <tr key={pod.metadata.uid}><td><button onClick={() => open(pod)}>{pod.metadata.name}</button></td><td>{pod.status?.containerStatuses?.filter((c: any) => c.ready).length ?? 0}/{pod.spec?.containers?.length ?? 0}</td><td><Status resource={pod}/></td><td>{pod.spec?.nodeName ?? 'Unscheduled'}</td></tr>)}</tbody></table></div>{!related.length && !pods.error && !intermediates.error && <p className="muted">No related Pods found.</p>}</> }</>}
+    {showPods && <><h3>Related Pods ({related.length})</h3>{!!related.length && <button onClick={() => setLogPicker(true)}>Logs for related Pods</button>}{pods.error && <p className="inline-error">{pods.error}</p>}{intermediates.error && <p className="inline-error">{intermediates.error}</p>}{pods.loading || intermediates.loading ? <p>Loading related Pods…</p> : <><div className="related-table"><table><thead><tr><th>Pod</th><th>Ready</th><th>Status</th><th>Node</th></tr></thead><tbody>{related.map(pod => <tr key={pod.metadata.uid}><td><button onClick={() => open(pod)}>{pod.metadata.name}</button></td><td>{pod.status?.containerStatuses?.filter((c: any) => c.ready).length ?? 0}/{pod.spec?.containers?.length ?? 0}</td><td><Status resource={pod}/></td><td>{pod.spec?.nodeName ?? 'Unscheduled'}</td></tr>)}</tbody></table></div>{!related.length && !pods.error && !intermediates.error && <p className="muted">No related Pods found.</p>}</> }</>}
     {resource.kind === 'Deployment' && <><h3>Deployment revisions</h3><p className="muted">Retained ReplicaSets only. Select one to inspect its pod template, containers and YAML.</p><div className="related-table"><table><thead><tr><th>Revision</th><th>ReplicaSet</th><th>Ready / desired</th></tr></thead><tbody>{revisions.map(rs => <tr key={rs.metadata.uid}><td>{String(rs.metadata.annotations?.['deployment.kubernetes.io/revision'] ?? 'Unknown')}{currentRevision && rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === currentRevision ? ' (current)' : ''}</td><td><button onClick={() => open(rs)}>{rs.metadata.name}</button></td><td>{rs.status?.readyReplicas ?? 0} / {rs.spec?.replicas ?? 0}</td></tr>)}</tbody></table></div>{!revisions.length && !intermediates.loading && !intermediates.error && <p className="muted">No retained revisions found.</p>}</>}
+    {logPicker && <LogSourceDialog pods={related} clusterId={clusterId} onClose={() => setLogPicker(false)}/>}
   </div>;
 }

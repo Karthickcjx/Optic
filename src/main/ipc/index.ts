@@ -1,4 +1,5 @@
 import { ResourceMetrics } from '../resource-metrics';
+import { exportLogs } from '../log-export';
 import { ResourceActions } from '../resource-actions';
 import { HelmService } from '../helm';
 import { Providers } from '../providers';
@@ -27,6 +28,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'logs:export': (input, owner) => exportLogs(owner, input.text),
     'nodes:drain-preview': input => actions.drainPreview(input),
     'nodes:drain': input => actions.drain(input, input.options),
     'deployments:revisions': input => actions.revisions(input),

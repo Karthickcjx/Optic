@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validContainerShell } from '../shared/logs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { defaultClusterSettings, metricCategories, type ClusterSettings } from '../shared/cluster-settings';
@@ -8,6 +9,7 @@ export const clusterSettingsSchema = z.object({
   displayName: z.string().max(60), color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   proxyUrl: z.string().max(2048).refine(value => { if (!value) return true; try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash; } catch { return false; } }, 'Use an HTTP(S) proxy URL without embedded credentials.'),
   terminalCwd: z.string().max(4096).refine(v => !/[\0\r\n]/.test(v)), defaultNamespace: name,
+  containerShell: z.string().refine(validContainerShell).default('/bin/sh'),
   accessibleNamespaces: z.array(name).max(200), metricsSource: z.enum(['automatic', 'prometheus', 'metrics-server', 'none']),
   hiddenMetrics: z.array(z.enum(metricCategories)).max(metricCategories.length), prometheus: endpoint,
   costSource: z.enum(['automatic', 'kubecost', 'opencost', 'estimate', 'off']), costEndpoint: endpoint,

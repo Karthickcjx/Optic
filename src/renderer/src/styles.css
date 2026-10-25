@@ -111,3 +111,8 @@
 @media(max-width:700px){.editor-grid{grid-template-columns:1fr}.key-value-row{grid-template-columns:1fr}.resource-action-modal{padding:16px}}
 
 .drain-pods th:first-child,.drain-pods td:first-child{width:60%;padding:9px 12px}.drain-pods th{padding:9px 12px;text-align:left}
+
+.log-toolbar,.terminal-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;flex-shrink:0;border-bottom:1px solid #414951;font-size:11px}
+.log-toolbar input:not([type=checkbox]){width:160px}.log-toolbar select{max-width:220px}.log-toolbar label,.terminal-toolbar label{display:flex;align-items:center;gap:5px;white-space:nowrap}.terminal-toolbar input{width:145px}.terminal-toolbar .muted{font-size:10px}
+.log-source-status{flex-shrink:0;padding:5px 12px;border-bottom:1px solid #414951;font-size:11px;max-height:115px;overflow:auto}.log-source-status summary{cursor:pointer}.log-source-status p{font-size:10px;color:#91a1b2;margin:5px 0}.log-source-row{display:flex;align-items:center;gap:10px;padding:3px 0}.log-source-row code{overflow-wrap:anywhere;max-width:45%}.log-source-row span{flex:1}.log-line-source{color:#849db2}.log-message{padding:5px 12px;font-size:11px;color:#99c7a6}
+.log-source-picker{max-height:45vh;overflow:auto}.log-source-picker .check-row span{overflow-wrap:anywhere;min-width:0}.log-source-picker small{color:#8ea0b4}.terminal-reconnect-confirm{padding:8px 12px;background:#39352b;font-size:12px}.terminal-reconnect-confirm button{margin:4px}.logs-pane .logs{min-height:0}

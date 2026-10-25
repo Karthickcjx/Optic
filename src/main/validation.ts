@@ -1,4 +1,5 @@
 import { publicUrl } from './helm';
+import { validContainerShell } from '../shared/logs';
 import { resourceEditSchema } from '../shared/resource-editors';
 import { clusterSettingsSchema } from './cluster-settings';
 import { z } from 'zod';
@@ -55,8 +56,9 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'resources:get': target, 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
   'resources:replace': target.extend({ yaml: z.string().min(1).max(2_000_000) }),
   'resources:delete': target, 'resources:restart': target,
-  'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional() }),
-  'terminal:open': z.object({ id, clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace'),
+  'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),
+  'logs:export': z.object({ text: z.string().max(8_000_000) }),
+  'terminal:open': z.object({ id, clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), shell: z.string().refine(validContainerShell).optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace').refine(v => !v.shell || !!v.pod, 'Shell selection applies to pod terminals'),
   'terminal:write': z.object({ id, data: z.string().max(65536) }),
   'terminal:resize': z.object({ id, cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }),
   'stream:ack': z.object({ id, seq: z.number().int().nonnegative() }), 'stream:close': z.object({ id })

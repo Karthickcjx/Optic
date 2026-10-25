@@ -148,5 +148,17 @@ Automatic source selection tries Prometheus then Metrics Server. Metrics Server 
 
 References: [Kubernetes resource metrics pipeline](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/) and [Prometheus range-query API](https://prometheus.io/docs/prometheus/latest/querying/api/).
 
+## Advanced logs and terminals
+
+Select Pods in a resource table and choose **Logs for selected Pods**, or open a workload's **Related** tab and choose **Logs for related Pods**. Select up to eight Pod/container sources, including init and ephemeral containers. Each source streams independently with namespace/Pod/container labels, status, stop and reconnect controls. Source selection is a snapshot; replacement Pods must be selected again.
+
+Filter by source or text, follow incoming lines, or read previous-container logs. **Export retained** and **Export filtered** open a native Save As dialog and write the currently retained lines with source labels. The viewer retains at most 5,000 lines / one million text characters, truncates individual lines at 16,384 characters, and reports discarded lines. Export is not a complete cluster log archive. Lines appear in arrival order.
+
+Current-container logs automatically retry eligible failures up to five times with exponential delays. Reconnect resumes from the last observed timestamp and suppresses repeated boundary lines when timestamps are available. Log rotation, Pod replacement and unavailable history can leave gaps; delivery is best effort. Permission failures and cluster disconnects stop retries. Previous-container snapshots do not automatically reconnect. Closing the log tab closes its streams and cancels retries.
+
+Set **Cluster settings > Terminal > Default container shell**, or change **Container shell** in an individual Pod terminal before reconnecting. Specify one executable path/name, such as `/bin/sh` or `/bin/bash`; it must exist in that container. Local terminals retain the operating-system shell. **Disconnect terminal** closes the session; **Reconnect terminal** starts a fresh process while retaining displayed terminal history. Commands are never replayed automatically. Reconnecting a node shell requires confirmation for a new privileged helper.
+
+Automated checks cover stream isolation, UTF-8 chunks, timestamp resume/deduplication, retry limits, cleanup races, native export and terminal reconnection. `npm run test:smoke` includes the multi-source Electron UI workflow. Kubernetes log API behavior: [Pod logs reference](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/).
+
 ## Application assets
 The user-provided transparent logo is in resources/logo.png. resources/icon.ico and resources/icon.icns are its Windows and macOS packaging conversions. All three assets are used by the app or packaging configuration.
