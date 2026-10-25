@@ -1,4 +1,5 @@
 import { ResourceMetrics } from '../resource-metrics';
+import { ResourceActions } from '../resource-actions';
 import { HelmService } from '../helm';
 import { Providers } from '../providers';
 import { Monitoring } from '../monitoring';
@@ -17,14 +18,22 @@ import { ForwardService } from '../forward';
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
   const resourceMetrics = new ResourceMetrics(clusters, resources);
+  const actions = new ResourceActions(clusters, resources);
   const streams = new Streams(); const sessions = new SessionService(clusters, streams);
   const providers = new Providers(clusters), monitoring = new Monitoring(clusters), nodeShell = new NodeShell(clusters, streams, sessions);
   const helm = new HelmService(clusters, join(app.getPath('userData'), 'helm-repositories.json'), id => monitoring.isBusy(id));
-  const helmBusy = (id: string) => monitoring.isBusy(id) || helm.isBusy(id);
-  app.on('before-quit', () => { monitoring.dispose(); helm.dispose(); });
+  const operationBusy = (id: string) => monitoring.isBusy(id) || helm.isBusy(id) || actions.isBusy(id);
+  app.on('before-quit', () => { monitoring.dispose(); helm.dispose(); actions.dispose(); });
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'nodes:drain-preview': input => actions.drainPreview(input),
+    'nodes:drain': input => actions.drain(input, input.options),
+    'deployments:revisions': input => actions.revisions(input),
+    'deployments:rollback': input => actions.rollback(input, input.revision, input.replicaSetUid),
+    'cronjobs:trigger': input => actions.trigger(input, input.jobName),
+    'cronjobs:suspend': input => actions.suspend(input, input.suspend),
+    'resources:edit': input => actions.edit(input, input.changes, input.dryRun),
     'helm:repositories': () => helm.repositories(),
     'helm:repository-save': input => helm.saveRepository(input.repository, input.remove),
     'helm:charts': input => helm.charts(input.repository, input.refresh),
@@ -38,17 +47,17 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'helm:uninstall': input => helm.uninstall(input),
 
     'settings:get': input => clusters.settings(input.clusterId),
-    'settings:save': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
+    'settings:save': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
     'settings:directory': async () => { const result = await dialog.showOpenDialog({ title: 'Terminal working directory', properties: ['openDirectory'] }); return result.canceled ? undefined : result.filePaths[0]; },
     'settings:reveal': input => shell.showItemInFolder(clusters.get(input.clusterId, true).cluster.source),
     'clusters:connect': input => clusters.connect(input.clusterId),
-    'clusters:disconnect': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
+    'clusters:disconnect': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
     'cost:read': input => providers.cost(input.clusterId),
     'monitoring:version': input => monitoring.latestVersion(input.component),
     'monitoring:status': input => monitoring.status(input.clusterId),
     'monitoring:apply': input => { if (helm.isBusy(input.clusterId)) throw new AppError('HELM_BUSY', 'Wait for the active Helm operation.'); return monitoring.apply(input.clusterId, input.changes); },
     'nodeshell:open': (input, owner) => nodeShell.open(owner, input),
-    'clusters:remove': input => { if (helmBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the Helm operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
+    'clusters:remove': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
     'forward:start': (input, owner) => forwards.start(owner, input),
     'clusters:import-clipboard': input => clusters.importClipboard(input.yaml),
     'clusters:import': async () => { const result = await dialog.showOpenDialog({ title: 'Add kubeconfig files', properties: ['openFile', 'multiSelections'] }); return result.canceled ? clusters.discover() : clusters.addPaths(result.filePaths); },
@@ -56,7 +65,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'metrics:read': input => resources.metrics(input.clusterId),
     'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun),
     'resources:scale': input => resources.scale(input, input.replicas),
-    'nodes:cordon': input => resources.cordon(input.clusterId, input.name, input.unschedulable),
+    'nodes:cordon': input => { if (actions.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active resource action before changing node scheduling.'); return resources.cordon(input.clusterId, input.name, input.unschedulable); },
     'clusters:list': () => clusters.discover(), 'clusters:health': input => clusters.health(input.clusterId),
     'resources:get': input => resources.get(input),
     'resources:list': input => resources.list(input),

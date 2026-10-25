@@ -97,3 +97,17 @@
 .manifest-modal > label { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .manifest-modal > label select { min-width: 0; max-width: 100%; }
 .manifest-modal { max-height: 90vh; overflow-y: auto; }
+
+.resource-action-modal{width:min(820px,92vw);max-height:calc(100vh - 100px);overflow:auto;padding:24px;background:#2b2f34;border:1px solid #545e68;border-radius:5px;box-shadow:0 15px 80px #0009}
+.resource-action-modal>header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.resource-action-modal h2{font-size:20px;margin:0}.resource-action-modal p{line-height:1.6;margin:12px 0;overflow-wrap:anywhere}
+.resource-action-modal label{display:flex;flex-direction:column;gap:6px;margin:10px 0;min-width:0}.resource-action-modal input,.resource-action-modal select,.resource-action-modal textarea{width:100%;min-width:0}
+.resource-action-modal .check-row{flex-direction:row;align-items:center;gap:10px}.resource-action-modal input[type=checkbox]{width:auto}
+.resource-action-modal>footer{display:flex;justify-content:flex-end;gap:8px;padding-top:18px;flex-wrap:wrap}
+.drain-pods{max-height:220px;overflow:auto}.drain-pods table{width:100%}.drain-pods td{overflow-wrap:anywhere;white-space:normal;padding:9px}
+.editor-fields{border:0;padding:0;min-width:0}.key-value-editor,.container-editor,.service-port-editor{border:1px solid #46515c;border-radius:4px;padding:12px;margin:14px 0;min-width:0}
+.key-value-row{display:grid;grid-template-columns:minmax(100px,1fr) minmax(100px,2fr) auto;gap:8px;align-items:start;margin:10px 0}.key-value-row textarea{resize:vertical}
+.editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px}.resource-notification>small{display:block;color:#a1aab5}.details>footer{flex-wrap:wrap}
+@media(max-width:700px){.editor-grid{grid-template-columns:1fr}.key-value-row{grid-template-columns:1fr}.resource-action-modal{padding:16px}}
+
+.drain-pods th:first-child,.drain-pods td:first-child{width:60%;padding:9px 12px}.drain-pods th{padding:9px 12px;text-align:left}

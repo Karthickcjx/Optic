@@ -124,6 +124,21 @@ Helm 3/4 release discovery uses explicit status filters (Helm 4 removed --all), 
 ## Related resources
 Open a resource's **Related** tab to follow its owner chain, browse live related Pods, or inspect a Deployment's retained ReplicaSet revisions. Links open the target in its own resource tab and namespace. Ownership uses UIDs, not name similarity; deleted/recreated owners and access errors are displayed. Supported owner APIs are the built-in resource catalog; unsupported custom owner APIs are shown without a link. Related Pods cover workloads (including Deployment/ReplicaSet and CronJob/Job chains), Services with selectors, Nodes, and PVC consumers. Revision history includes only ReplicaSets still retained by Kubernetes; selecting one opens its properties and YAML, without performing a rollback.
 
+## Resource actions and form editors
+
+Open a resource drawer to use these actions. Each confirmation shows the selected context and resource. Applying closes the dialog and reports running/success/failure through background notifications; switching tabs does not cancel an action. Keep Optic open until completion. Lists refresh after an action finishes.
+
+- **Nodes → Drain:** review scheduled Pods, leave DaemonSet/mirror Pods running, and explicitly opt into deleting emptyDir data or evicting unmanaged Pods. Uses the selected context's kubectl with a bounded timeout and requires the eviction API; it does not disable eviction or bypass PodDisruptionBudgets. A completed or failed drain can leave the node cordoned. Uncordon after maintenance. Closing Optic stops the command and can leave a partial drain.
+- **Deployments → Rollback:** choose an earlier retained ReplicaSet revision and review its images. Only the Pod template is restored, without its generated pod-template-hash label; replicas and other Deployment fields are preserved. Ownership and resource-version checks reject replaced or concurrently changed resources. Paused Deployments must be resumed first. Success means the rollback was submitted, not that new Pods are already healthy.
+- **Cron Jobs → Run now / Suspend / Resume:** create a named Job from the current Job template, or pause/resume future scheduled runs. Manual execution can overlap existing Jobs and is allowed while scheduling is suspended. Suspension does not stop existing Jobs; resuming may run missed schedules.
+- **Edit resource:** ConfigMap text entries; Deployment, StatefulSet, DaemonSet, ReplicaSet and ReplicationController container images/requests/limits and applicable replica counts; Service selectors/type/ports; and CronJob schedule/time zone/concurrency/history limits. Unedited settings and ConfigMap binaryData are preserved. ExternalName Services and Secret values do not have form editors; other resource fields remain in the existing YAML workflow.
+
+Form changes require API-server dry-run validation before confirmation. Editing after validation invalidates the result. Saving uses UID/resourceVersion preconditions and rejects concurrent edits. Kubernetes still enforces field immutability, RBAC and admission policies. Drain/rollback/trigger mutation tests use isolated fixtures, not existing live workloads.
+
+Behavior follows the Kubernetes documentation for [drain](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_drain/), [Deployment rollback](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment), and [CronJob scheduling](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/).
+
+Optic's node-exporter monitoring install uses a 5-second readiness initial delay, a 10-second liveness initial delay, and 3-second probe timeouts. These avoid probing immediately before the exporter binds port 9100. Probe checks remain enabled; historical startup-warning Events remain until Kubernetes expires them.
+
 ## Pod, container and workload metrics
 Open **Metrics** in a Pod, Deployment, ReplicaSet, StatefulSet, DaemonSet, ReplicationController, Job or CronJob drawer. Select all containers or a named container and a 5/15/30/60-minute window. Charts refresh every 15 seconds and include timestamp/value axes and sample tooltips.
 

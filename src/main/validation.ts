@@ -1,4 +1,5 @@
 import { publicUrl } from './helm';
+import { resourceEditSchema } from '../shared/resource-editors';
 import { clusterSettingsSchema } from './cluster-settings';
 import { z } from 'zod';
 import { resourceKinds, type Requests } from '../shared/protocol';
@@ -8,6 +9,10 @@ const id = z.string().uuid();
 const custom = z.object({ apiVersion: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?$/), kind: name, plural: name, namespaced: z.boolean() });
 const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional() });
 const target = scope.extend({ name });
+const actionTarget = target.extend({ uid: text, resourceVersion: text });
+const nodeAction = actionTarget.extend({ kind: z.literal('nodes') });
+const deploymentAction = actionTarget.extend({ kind: z.literal('deployments'), namespace: name });
+const cronjobAction = actionTarget.extend({ kind: z.literal('cronjobs'), namespace: name });
 const helmName = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(53);
 const namespace = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(63);
 const chart = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/).max(253);
@@ -15,6 +20,13 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'nodes:drain-preview': target.extend({ kind: z.literal('nodes') }),
+  'nodes:drain': nodeAction.extend({ options: z.object({ ignoreDaemonSets: z.boolean(), deleteEmptyDirData: z.boolean(), force: z.boolean(), timeoutSeconds: z.number().int().min(30).max(1800) }).strict() }),
+  'deployments:revisions': target.extend({ kind: z.literal('deployments'), namespace: name }),
+  'deployments:rollback': deploymentAction.extend({ revision: z.number().int().positive().max(1000000000), replicaSetUid: text }),
+  'cronjobs:trigger': cronjobAction.extend({ jobName: z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(63) }),
+  'cronjobs:suspend': cronjobAction.extend({ suspend: z.boolean() }),
+  'resources:edit': actionTarget.extend({ kind: z.enum(['configmaps', 'deployments', 'statefulsets', 'daemonsets', 'replicasets', 'replicationcontrollers', 'services', 'cronjobs']), namespace: name, changes: resourceEditSchema, dryRun: z.boolean() }),
   'helm:repositories': z.undefined(),
   'helm:repository-save': z.object({ repository: z.object({ name: helmName, url: z.string().max(2048).refine(v => publicUrl(v)) }), remove: z.boolean() }),
   'helm:charts': z.object({ repository: helmName, refresh: z.boolean().optional() }),
