@@ -40,6 +40,8 @@ export class HelmService {
   private children = new Set<ChildProcess>();
   private busy = new Set<string>();
   private previews = new Map<string, { hash: string; reference: string; expires: number }>();
+  private chartCommands = new Map<string, Promise<void>>();
+  private disposed = false;
   constructor(private clusters: ClusterManager, private path: string, private otherBusy: (id: string) => boolean = () => false) {
     if (existsSync(path)) { try { const value = JSON.parse(readFileSync(path, 'utf8')); if (Array.isArray(value) && value.every(r => /^[a-z0-9][a-z0-9-]{0,62}$/.test(r.name) && publicUrl(r.url))) this.repos = value; } catch {} }
   }
@@ -80,8 +82,18 @@ export class HelmService {
     throw new AppError('CHART_NOT_FOUND', 'This chart has no supported HTTPS or public OCI package URL.');
   }
   isBusy(id: string) { return this.busy.has(id); }
-  dispose() { for (const child of this.children) child.kill(); this.children.clear(); this.previews.clear(); }
+  dispose() { this.disposed = true; for (const child of this.children) child.kill(); this.children.clear(); this.previews.clear(); }
+  private async chartCommand(reference: string, args: string[]) {
+    // Helm's Windows content cache cannot rename concurrent downloads of the same chart.
+    const previous = this.chartCommands.get(reference) ?? Promise.resolve();
+    const result = previous.then(() => this.command(args));
+    const settled = result.then(() => {}, () => {});
+    this.chartCommands.set(reference, settled);
+    try { return await result; }
+    finally { if (this.chartCommands.get(reference) === settled) this.chartCommands.delete(reference); }
+  }
   private async command(args: string[]) {
+    if (this.disposed) throw new AppError('HELM_CLOSED', 'The Helm service has closed. Reopen Optic before retrying.');
     try {
       return await new Promise<string>((resolve, reject) => {
         const child = execFile('helm', args, { shell: false, windowsHide: true, timeout: 360000, maxBuffer: 8_000_000 }, (error, stdout, stderr) => {
@@ -96,7 +108,7 @@ export class HelmService {
   private json(text: string) { try { return JSON.parse(text); } catch { throw new AppError('HELM_OUTPUT', 'Helm returned unexpected JSON output. Check your Helm version.'); } }
   async chartInfo(repository: string, chart: string, version: string) {
     const reference = await this.reference(repository, chart, version);
-    const [values, readme] = await Promise.all([this.command(['show', 'values', reference, '--version', version]), this.command(['show', 'readme', reference, '--version', version])]);
+    const [values, readme] = await Promise.all([this.chartCommand(reference, ['show', 'values', reference, '--version', version]), this.chartCommand(reference, ['show', 'readme', reference, '--version', version])]);
     return { values, readme };
   }
   async releases(clusterId: string, namespace?: string): Promise<HelmRelease[]> {
@@ -130,7 +142,7 @@ export class HelmService {
     validateValues(input.values); const reference = await this.reference(input.repository, input.chart, input.version);
     const result = await this.withConfig(input.clusterId, async path => {
       const valuesPath = join(dirname(path), 'values.yaml'); writeFileSync(valuesPath, input.values || '{}', { mode: 0o600, flag: 'wx' });
-      return redactManifest(await this.command([...installArgs(input, reference, valuesPath, true), '--kubeconfig', path]));
+      return redactManifest(await this.chartCommand(reference, [...installArgs(input, reference, valuesPath, true), '--kubeconfig', path]));
     });
     for (const [token, p] of this.previews) if (p.expires < Date.now()) this.previews.delete(token);
     if (this.previews.size >= 50) this.previews.delete(this.previews.keys().next().value!);
@@ -147,7 +159,7 @@ export class HelmService {
       this.previews.delete(token);
       await this.withConfig(input.clusterId, async path => {
         const valuesPath = join(dirname(path), 'values.yaml'); writeFileSync(valuesPath, input.values || '{}', { mode: 0o600, flag: 'wx' });
-        await this.command([...installArgs(input, preview.reference, valuesPath), '--kubeconfig', path]);
+        await this.chartCommand(preview.reference, [...installArgs(input, preview.reference, valuesPath), '--kubeconfig', path]);
       });
     });
   }

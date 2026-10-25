@@ -79,6 +79,16 @@ try {
   await page.getByRole('button', { name: 'Pods', exact: true }).click();
   await expect(page.getByText('api-gateway', { exact: true })).toBeVisible({ timeout: 20000 });
   await capture('02-pods');
+  const agePods = [['age-two-minutes', 2], ['age-ten-hours', 600], ['age-one-day', 1440]].map(([name, minutes]) => ({ ...pod, metadata: { ...pod.metadata, uid: name, name, creationTimestamp: new Date(Date.now() - minutes * 60000).toISOString() } }));
+  for (const response of watchers) for (const object of agePods) response.write(JSON.stringify({ type: 'ADDED', object }) + '\n');
+  await expect(page.locator('tbody tr')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Age', exact: true }).click();
+  await expect(page.locator('tbody .resource-name')).toHaveText(['age-two-minutes', 'api-gateway', 'age-ten-hours', 'age-one-day']);
+  await page.getByRole('button', { name: 'Age', exact: true }).click();
+  await expect(page.locator('tbody .resource-name')).toHaveText(['age-one-day', 'age-ten-hours', 'api-gateway', 'age-two-minutes']);
+  for (const response of watchers) for (const object of agePods) response.write(JSON.stringify({ type: 'DELETED', object }) + '\n');
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Name', exact: true }).click();
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   await page.getByTitle('Add kubeconfig', { exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Add kubeconfig', exact: true })).toBeVisible();
@@ -191,6 +201,24 @@ try {
   await expect(historyChart.locator('circle').first()).toHaveAttribute('cy', firstPoint);
   await expect(historyChart.locator('polyline')).toHaveAttribute('points', /\S+,\S+ \S+,\S+/);
   await expect(historyChart.locator('text')).toHaveCount(10);
+  // A failed poll must not present retained history as a current reading.
+  await app.evaluate(({ ipcMain }) => {
+    globalThis.auditMetricsHandler = ipcMain._invokeHandlers.get('metrics:read');
+    ipcMain.removeHandler('metrics:read');
+    ipcMain.handle('metrics:read', () => ({ ok: false, error: { code: 'UNREACHABLE', message: 'Test metrics connection lost', retryable: true } }));
+  });
+  await page.getByTitle('Refresh overview', { exact: true }).click();
+  await expect(page.getByRole('img', { name: 'CPU: unavailable used', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'MEMORY: unavailable used', exact: true })).toBeVisible();
+  await expect(page.locator('.overview-page')).toContainText('Historical samples are retained; last successful sample:');
+  await expect(page.locator('.overview-toolbar')).toContainText('Metrics unavailable');
+  await expect(historyChart.locator('circle').first()).toBeVisible();
+  await capture('12b-metrics-unavailable-history-retained');
+  await app.evaluate(({ ipcMain }) => { ipcMain.removeHandler('metrics:read'); ipcMain.handle('metrics:read', globalThis.auditMetricsHandler); delete globalThis.auditMetricsHandler; });
+  await page.getByTitle('Refresh overview', { exact: true }).click();
+  await expect(page.getByRole('img', { name: 'CPU: 0.50 used', exact: true })).toBeVisible();
+  await expect(page.locator('.overview-page')).not.toContainText('Historical samples are retained; last successful sample:');
+  await expect(page.locator('.overview-toolbar')).toContainText('Live samples');
   await page.getByLabel('Monitor nodes', { exact: true }).selectOption('masters');
   await expect(page.getByRole('img', { name: 'CPU: unavailable used', exact: true })).toBeVisible();
   await expect(page.getByText('No nodes match this selection.', { exact: true })).toBeVisible();

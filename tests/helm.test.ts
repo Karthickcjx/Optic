@@ -81,3 +81,33 @@ it('classifies Helm failures without disclosing stderr secrets', () => {
  expect(helmFailure({}, 'arbitrary private-token')).not.toContain('private-token');
  expect(helmFailure({code:'ENOENT'})).toContain('PATH');
 });
+
+it('serializes downloads of the same chart across defaults and preview', async () => {
+ const { service } = setup();
+ let active = 0, peak = 0;
+ vi.mocked(execFile).mockImplementation((...args: any[]) => {
+  active++; peak = Math.max(peak, active);
+  setTimeout(() => { active--; args.at(-1)(null, args[1][0] === 'template' ? 'kind: ConfigMap\nmetadata: {name: test}' : 'chart information'); }, 5);
+  return { kill: vi.fn() } as any;
+ });
+ const [info, preview] = await Promise.all([service.chartInfo('bitnami', 'nginx', '2.0.0'), service.preview(plan)]);
+ expect(info).toEqual({ values: 'chart information', readme: 'chart information' });
+ expect(preview.resources).toBe(1);
+ expect(peak).toBe(1);
+ expect(execFile).toHaveBeenCalledTimes(3);
+});
+
+it('releases the chart queue after a download failure and stops queued work on disposal', async () => {
+ const { service } = setup();
+ let fail = true;
+ vi.mocked(execFile).mockImplementation((...args: any[]) => {
+  queueMicrotask(() => { const error = fail ? { code: 1 } : null; fail = false; args.at(-1)(error, 'chart information', ''); });
+  return { kill: vi.fn() } as any;
+ });
+ await expect(service.chartInfo('bitnami', 'nginx', '2.0.0')).rejects.toThrow('Helm failed');
+ await expect(service.chartInfo('bitnami', 'nginx', '2.0.0')).resolves.toEqual({ values: 'chart information', readme: 'chart information' });
+ service.dispose();
+ const calls = vi.mocked(execFile).mock.calls.length;
+ await expect(service.chartInfo('bitnami', 'nginx', '2.0.0')).rejects.toThrow('closed');
+ expect(execFile).toHaveBeenCalledTimes(calls);
+});

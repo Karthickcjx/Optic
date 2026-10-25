@@ -67,7 +67,9 @@ export class SessionService {
     // A local terminal inherits the user's environment. Pod selection is passed as argv, never interpolated shell code.
     if (options.pod) {
       const { cluster } = this.clusters.get(options.clusterId!);
-      file = 'kubectl';
+      // ConPTY requires the executable extension; unlike execFile, it does not
+      // resolve a bare kubectl command through Windows PATHEXT.
+      file = process.platform === 'win32' ? 'kubectl.exe' : 'kubectl';
       args = ['--kubeconfig', lease!.path, '--context', cluster.name, '--namespace', options.namespace!, 'exec', '-it', options.pod];
       if (options.container) args.push('-c', options.container);
       args.push('--', ...remoteCommand);

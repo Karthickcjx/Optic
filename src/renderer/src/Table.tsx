@@ -12,7 +12,7 @@ export function Status({ resource }: { resource: Resource }) {
   return <span className={`status ${tone}`}><i/>{status}</span>;
 }
 export function age(value?: string) {
-  if (!value) return '—';
+  if (!value || !Number.isFinite(Date.parse(value))) return '—';
   const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000));
   return minutes < 60 ? `${minutes}m` : minutes < 1440 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 1440)}d`;
 }
@@ -26,6 +26,7 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
       { id: 'name', header: 'Name', accessorFn: r => r.metadata.name, cell: ctx => <span className="resource-name">{String(ctx.getValue())}</span> },
       textColumn('namespace', 'Namespace', r => r.metadata.namespace ?? '—')
     ];
+    const ageColumn = (id: string, header: string, timestamp: (r: Resource) => string | undefined): ColumnDef<Resource> => ({ id, header, accessorFn: r => { const value = Date.parse(timestamp(r) ?? ''); return Number.isFinite(value) ? -value : undefined; }, sortingFn: 'basic', sortDescFirst: false, sortUndefined: 'last', cell: ctx => age(timestamp(ctx.row.original)) });
     if (kind === 'pods') result.push(
       textColumn('containers', 'Containers', r => `${r.status?.containerStatuses?.filter((c: any) => c.ready).length ?? 0}/${r.spec?.containers?.length ?? 0}`),
       textColumn('restarts', 'Restarts', r => r.status?.containerStatuses?.reduce((sum: number, c: any) => sum + (c.restartCount ?? 0), 0) ?? 0),
@@ -34,7 +35,7 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
     if (['deployments','statefulsets','replicasets','replicationcontrollers'].includes(kind)) result.push(textColumn('replicas', 'Replicas', r => `${r.status?.readyReplicas ?? 0}/${r.spec?.replicas ?? 1}`));
     if (kind === 'daemonsets') result.push(textColumn('scheduled', 'Desired', r => r.status?.desiredNumberScheduled), textColumn('ready', 'Ready', r => r.status?.numberReady));
     if (kind === 'jobs') result.push(textColumn('completions', 'Completions', r => `${r.status?.succeeded ?? 0}/${r.spec?.completions ?? 1}`));
-    if (kind === 'cronjobs') result.push(textColumn('schedule', 'Schedule', r => r.spec?.schedule), textColumn('last', 'Last schedule', r => age(r.status?.lastScheduleTime)));
+    if (kind === 'cronjobs') result.push(textColumn('schedule', 'Schedule', r => r.spec?.schedule), ageColumn('last', 'Last schedule', r => r.status?.lastScheduleTime));
     if (kind === 'nodes') result.push(textColumn('roles', 'Roles', r => Object.keys(r.metadata.labels ?? {}).filter(k => k.startsWith('node-role.kubernetes.io/')).map(k => k.split('/')[1]).join(', ') || 'worker'), textColumn('version', 'Version', r => r.status?.nodeInfo?.kubeletVersion), textColumn('os', 'OS', r => r.status?.nodeInfo?.osImage));
     if (kind === 'services') result.push(textColumn('type', 'Type', r => r.spec?.type), textColumn('ip', 'Cluster IP', r => r.spec?.clusterIP), textColumn('ports', 'Ports', r => r.spec?.ports?.map((p: any) => `${p.port}/${p.protocol}`).join(', ')));
     if (kind === 'ingresses') result.push(textColumn('hosts', 'Hosts', r => r.spec?.rules?.map((rule: any) => rule.host).join(', ')), textColumn('class', 'Class', r => r.spec?.ingressClassName));
@@ -47,7 +48,7 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
     if (kind.endsWith('admissionpolicybindings')) result.push(textColumn('policy', 'Policy', r => r.spec?.policyName), textColumn('actions', 'Validation actions', r => r.spec?.validationActions?.join(', ')));
     if (kind === 'events') result.push(textColumn('reason', 'Reason', r => r.reason), textColumn('message', 'Message', r => r.message), textColumn('count', 'Count', r => r.count));
     if (kind === 'customresourcedefinitions') result.push(textColumn('group', 'Group', r => r.spec?.group), textColumn('scope', 'Scope', r => r.spec?.scope));
-    result.push(textColumn('age', 'Age', r => age(r.metadata.creationTimestamp)), { id: 'status', header: 'Status', accessorFn: resourceStatus, cell: ctx => <Status resource={ctx.row.original}/> });
+    result.push(ageColumn('age', 'Age', r => r.metadata.creationTimestamp), { id: 'status', header: 'Status', accessorFn: resourceStatus, cell: ctx => <Status resource={ctx.row.original}/> });
     return result;
   }, [kind]);
   const table = useReactTable({ data: items, columns, getRowId: r => r.metadata.uid ?? `${r.metadata.namespace}/${r.metadata.name}`, state: { globalFilter: search, sorting, rowSelection: selection }, onGlobalFilterChange: setSearch, onSortingChange: setSorting, onRowSelectionChange: setSelection, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: 50 } } });

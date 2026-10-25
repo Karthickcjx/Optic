@@ -30,10 +30,30 @@ export function validateReplacement(target: Target, document: Resource) {
   if (!document.metadata.resourceVersion) throw new AppError('INVALID_RESOURCE', 'YAML must include resourceVersion to prevent overwriting concurrent changes.');
 }
 export class ResourceService {
+  private apiVersions = new WeakMap<object, Map<string, { version: string; expires: number }>>();
   constructor(private clusters: ClusterManager) {}
   private config(id: string) { return this.clusters.get(id).config; }
-  async get(target: Target) { return this.normalize(target, await kubeJson<Resource>(this.config(target.clusterId), targetPath(target))); }
-  async list(scope: Scope) { return (await this.listVersioned(scope)).items; }
+  private async resolveScope<T extends Scope>(scope: T): Promise<T> {
+    if (!['mutatingadmissionpolicies', 'mutatingadmissionpolicybindings'].includes(scope.kind)) return scope;
+    const config = this.config(scope.clusterId), descriptor = definition(scope);
+    let cache = this.apiVersions.get(config);
+    if (!cache) { cache = new Map(); this.apiVersions.set(config, cache); }
+    const cached = cache.get(scope.kind);
+    let version = cached && cached.expires > Date.now() ? cached.version : undefined;
+    if (!version) {
+      for (const candidate of ['admissionregistration.k8s.io/v1', 'admissionregistration.k8s.io/v1beta1']) {
+        try {
+          const discovery = await kubeJson<{ resources?: { name: string; kind: string }[] }>(config, `/apis/${candidate}`);
+          if (discovery.resources?.some(resource => resource.name === descriptor.plural && resource.kind === descriptor.kind)) { version = candidate; break; }
+        } catch (error) { if ((error as { statusCode?: number }).statusCode !== 404) throw error; }
+      }
+      if (!version) throw new AppError('API_UNAVAILABLE', 'This cluster does not serve Mutating Admission Policies. Check its Kubernetes version and enabled admission APIs.');
+      cache.set(scope.kind, { version, expires: Date.now() + 60000 });
+    }
+    return { ...scope, kind: 'custom', custom: { ...descriptor, apiVersion: version } };
+  }
+  async get(target: Target) { target = await this.resolveScope(target); return this.normalize(target, await kubeJson<Resource>(this.config(target.clusterId), targetPath(target))); }
+  async list(scope: Scope) { return (await this.listVersioned(await this.resolveScope(scope))).items; }
   private async listVersioned(scope: Scope, signal?: AbortSignal): Promise<{ items: Resource[]; version?: string }> {
     const items: Resource[] = []; let continuation = '', version: string | undefined;
     do {
@@ -64,15 +84,17 @@ export class ResourceService {
     };
     const start = async () => {
       try {
-        const initial = await this.listVersioned(scope, lifetime.signal);
+        const resolved = await this.resolveScope(scope);
+        if (stopped) return;
+        const initial = await this.listVersioned(resolved, lifetime.signal);
         if (stopped) return;
         cache.clear(); initial.items.forEach(item => cache.set(item.metadata.uid ?? `${item.metadata.namespace}/${item.metadata.name}`, item)); publish();
-        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(scope), { resourceVersion: initial.version, allowWatchBookmarks: true, timeoutSeconds: 240 }, (type, object) => {
+        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(resolved), { resourceVersion: initial.version, allowWatchBookmarks: true, timeoutSeconds: 240 }, (type, object) => {
           if (stopped) return;
           if (type === 'ERROR') { controller?.abort(); retry(new Error('Watch expired')); return; }
           if (type === 'BOOKMARK') return;
           backoff = 1000; const key = object.metadata?.uid ?? `${object.metadata?.namespace}/${object.metadata?.name}`;
-          if (type === 'DELETED') cache.delete(key); else if (type === 'ADDED' || type === 'MODIFIED') cache.set(key, this.normalize(scope, object)); publish();
+          if (type === 'DELETED') cache.delete(key); else if (type === 'ADDED' || type === 'MODIFIED') cache.set(key, this.normalize(resolved, object)); publish();
         }, error => retry(error));
         if (stopped) pending.abort(); else controller = pending;
       } catch (error) { retry(error); }
@@ -81,17 +103,19 @@ export class ResourceService {
     return () => { stopped = true; lifetime.abort(); clearTimeout(timer); clearTimeout(publishTimer); controller?.abort(); cache.clear(); };
   }
   async yaml(target: Target) {
+    target = await this.resolveScope(target);
     if (definition(target).kind === 'Secret') throw new AppError('REDACTED', 'Secret values are not exposed by this workbench.');
     const resource = await kubeJson<Resource>(this.config(target.clusterId), targetPath(target));
     if (resource.metadata) delete resource.metadata.managedFields;
     return stringify(resource);
   }
   async replace(target: Target, yaml: string) {
+    target = await this.resolveScope(target);
     if (definition(target).kind === 'Secret') throw new AppError('REDACTED', 'Secret editing is unavailable.');
     const document = parse(yaml, { maxAliasCount: 50 }) as Resource; validateReplacement(target, document); delete document.status;
     await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'PUT', body: document });
   }
-  async delete(target: Target) { await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'DELETE', body: { apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background' } }); }
+  async delete(target: Target) { target = await this.resolveScope(target); await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'DELETE', body: { apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background' } }); }
   async restart(target: Target) {
     if (!['deployments', 'statefulsets', 'daemonsets'].includes(target.kind)) throw new AppError('UNSUPPORTED', 'Rollout restart is available for Deployments, StatefulSets and DaemonSets.');
     await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'PATCH', contentType: 'application/merge-patch+json', body: { spec: { template: { metadata: { annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() } } } } } });

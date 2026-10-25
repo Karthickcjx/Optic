@@ -14,8 +14,8 @@ it('routes configuration resources with the correct API group and namespace scop
     ['validatingwebhookconfigurations', '/apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations'],
     ['validatingadmissionpolicies', '/apis/admissionregistration.k8s.io/v1/validatingadmissionpolicies'],
     ['validatingadmissionpolicybindings', '/apis/admissionregistration.k8s.io/v1/validatingadmissionpolicybindings'],
-    ['mutatingadmissionpolicies', '/apis/admissionregistration.k8s.io/v1beta1/mutatingadmissionpolicies'],
-    ['mutatingadmissionpolicybindings', '/apis/admissionregistration.k8s.io/v1beta1/mutatingadmissionpolicybindings']
+    ['mutatingadmissionpolicies', '/apis/admissionregistration.k8s.io/v1/mutatingadmissionpolicies'],
+    ['mutatingadmissionpolicybindings', '/apis/admissionregistration.k8s.io/v1/mutatingadmissionpolicybindings']
   ];
   for (const [kind, path] of cases) {
     const scope = { clusterId: 'c', kind: kind as BuiltinKind, namespace: 'team' };
