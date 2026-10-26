@@ -1,3 +1,5 @@
+import { exportCostReport } from '../cost-export';
+import { CostReports } from '../cost-report';
 import { OverviewMetrics } from '../overview-metrics';
 import { ResourceMetrics } from '../resource-metrics';
 import { exportLogs } from '../log-export';
@@ -19,6 +21,7 @@ import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  const costReports = new CostReports(clusters);
   const overviewMetrics = new OverviewMetrics(clusters);
   const resourceMetrics = new ResourceMetrics(clusters, resources);
   const actions = new ResourceActions(clusters, resources);
@@ -30,6 +33,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'cost:export': (input, owner) => exportCostReport(owner, input.text, input.format),
     'logs:export': (input, owner) => exportLogs(owner, input.text),
     'nodes:drain-preview': input => actions.drainPreview(input),
     'nodes:drain': input => actions.drain(input, input.options),
@@ -56,6 +60,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'settings:reveal': input => shell.showItemInFolder(clusters.get(input.clusterId, true).cluster.source),
     'clusters:connect': input => clusters.connect(input.clusterId),
     'clusters:disconnect': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
+    'cost:report': input => costReports.read(input),
     'cost:read': input => providers.cost(input.clusterId),
     'monitoring:version': input => monitoring.latestVersion(input.component),
     'monitoring:status': input => monitoring.status(input.clusterId),

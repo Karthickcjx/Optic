@@ -162,3 +162,15 @@ Automated checks cover stream isolation, UTF-8 chunks, timestamp resume/deduplic
 
 ## Application assets
 The user-provided transparent logo is in resources/logo.png. resources/icon.ico and resources/icon.icns are its Windows and macOS packaging conversions. All three assets are used by the app or packaging configuration.
+
+## Historical cost dashboard
+
+Open **Cost** under a cluster in the Navigator. Configure the allocation provider under **Cluster Settings > Cost**. The dashboard reads OpenCost or Kubecost allocation history through the authenticated Kubernetes service proxy; it does not install a cost stack.
+
+Choose 24 hours, 7 days, 30 days, or a custom past range up to 31 days, then **Apply range**. Group by namespace, node, or workload (namespace/controller kind/controller), and include or exclude idle costs. The timeline uses hourly buckets for ranges up to two days and daily buckets for longer ranges. Click an allocation to inspect its interval breakdown. Search, sort, and paginate allocations; CPU, memory, GPU, storage, network, load balancer, shared and external cost columns show provider-reported values.
+
+**Export CSV** and **Export JSON** use a native Save As dialog. Both include source, dates, grouping and warnings. Search filters exported allocations; JSON additionally includes the complete report timeline. Totals may contain provider adjustments that are not represented in the unadjusted component columns. Missing components remain unavailable, missing periods are not zero-filled, and failed refreshes mark the prior report stale and disable export.
+
+History depends on the provider's retained data, pricing and permissions. Currency is shown only if returned by the provider; otherwise the unit is labelled `provider units`. The estimate source projects the current node count at the configured USD hourly rate over the chosen duration; it does not create historical samples or represent a verified cloud invoice. Reports are bounded to 744 intervals and 20,000 allocation rows. Reduce the range or use a broader grouping if these limits are exceeded.
+
+API references: [OpenCost allocation API](https://opencost.io/docs/integrations/api/) and [query examples](https://opencost.io/docs/integrations/api-examples/). Unit tests and the Electron cost dashboard smoke test cover aggregation, grouping, dates, missing data, stale reports and native exports.

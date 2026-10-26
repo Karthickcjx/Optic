@@ -1,3 +1,4 @@
+import type { CostQuery, CostReport } from './cost';
 import type { OverviewHistory } from './metrics';
 import type { ResourceMetricRequest, ResourceMetricResult } from './resource-metrics';
 import type { ActionTarget, DeploymentRevision, DrainOptions, DrainPreview } from './resource-actions';
@@ -50,6 +51,7 @@ export interface Requests {
   'settings:reveal': { input: { clusterId: string }; output: void };
   'clusters:connect': { input: { clusterId: string }; output: { version: string; latencyMs: number } };
   'clusters:disconnect': { input: { clusterId: string }; output: void };
+  'cost:report': { input: CostQuery; output: CostReport };
   'cost:read': { input: { clusterId: string }; output: CostResult };
   'monitoring:version': { input: { component: MonitoringComponent }; output: { version: string } };
   'monitoring:status': { input: { clusterId: string }; output: { name: string; status: string; chart: string }[] };
@@ -75,6 +77,7 @@ export interface Requests {
   'resources:delete': { input: Target; output: void };
   'resources:restart': { input: Target; output: void };
   'logs:start': { input: PodTarget & { id: string; tailLines?: number; previous?: boolean; sinceTime?: string }; output: void };
+  'cost:export': { input: { text: string; format: 'csv' | 'json' }; output: { saved: boolean } };
   'logs:export': { input: { text: string }; output: { saved: boolean } };
   'terminal:open': { input: TerminalOptions & { id: string }; output: void };
   'terminal:write': { input: { id: string; data: string }; output: void };
@@ -82,7 +85,7 @@ export interface Requests {
   'stream:ack': { input: { id: string; seq: number }; output: void };
   'stream:close': { input: { id: string }; output: void };
 }
-export const channels: (keyof Requests)[] = ['metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
+export const channels: (keyof Requests)[] = ['cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 export interface DesktopAPI {
   request<K extends keyof Requests>(channel: K, input: Requests[K]['input']): Promise<Result<Requests[K]['output']>>;
   subscribe(listener: (event: StreamEvent) => void): () => void;

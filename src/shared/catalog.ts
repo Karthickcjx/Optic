@@ -41,5 +41,5 @@ export const catalog = {
 } as const;
 export type BuiltinKind = keyof typeof catalog;
 export interface CustomType { apiVersion: string; kind: string; plural: string; namespaced: boolean }
-export type View = BuiltinKind | 'custom' | 'applications' | 'overview' | 'welcome' | 'settings' | 'cluster-settings' | 'helm-charts' | 'helm-releases';
+export type View = BuiltinKind | 'custom' | 'applications' | 'cost' | 'overview' | 'welcome' | 'settings' | 'cluster-settings' | 'helm-charts' | 'helm-releases';
 export const resourceKinds = [...Object.keys(catalog), 'custom'] as unknown as [BuiltinKind | 'custom', ...(BuiltinKind | 'custom')[]];

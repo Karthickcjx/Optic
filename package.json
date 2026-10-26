@@ -12,7 +12,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs",
+    "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs && node tests/cost-dashboard-smoke.mjs",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
   },

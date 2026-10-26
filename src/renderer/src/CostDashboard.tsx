@@ -1,0 +1,58 @@
+import { useEffect, useState } from 'react';
+import { costComponents, costCsv, type CostAllocation, type CostGroup, type CostQuery, type CostReport } from '../../shared/cost';
+import { useStore } from './store';
+import { request } from './api';
+const dateInput = (time: number) => { const d = new Date(time); return new Date(time - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+const number = (n: number | undefined | null) => n === undefined || n === null ? 'Unavailable' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+export function CostDashboard() {
+  const clusterId = useStore(s => s.clusterId), navigate = useStore(s => s.navigate);
+  const clusterName = useStore(s => s.clusters.find(c => c.id === clusterId)?.name ?? clusterId);
+  const [range, setRange] = useState('24'), [group, setGroup] = useState<CostGroup>('namespace'), [idle, setIdle] = useState(true);
+  const [start, setStart] = useState(() => dateInput(Date.now() - 86400000)), [end, setEnd] = useState(() => dateInput(Date.now()));
+  const [query, setQuery] = useState<CostQuery>(() => ({ clusterId, start: Date.now() - 86400000, end: Date.now(), group: 'namespace', includeIdle: true }));
+  const [report, setReport] = useState<CostReport>(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
+  const [search, setSearch] = useState(''), [sort, setSort] = useState('total'), [page, setPage] = useState(0), [selected, setSelected] = useState<CostAllocation>();
+  useEffect(() => {
+    let active = true; setBusy(true); setError(''); setSelected(undefined);
+    void request('cost:report', { ...query, clusterId }).then(data => { if (active) setReport(data); }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, [clusterId, query, refresh]);
+  useEffect(() => { setReport(undefined); setSearch(''); setPage(0); }, [clusterId, query]);
+  useEffect(() => setPage(0), [search, sort]);
+  const apply = () => {
+    const b = range === 'custom' ? new Date(end).getTime() : Date.now(), a = range === 'custom' ? new Date(start).getTime() : b - Number(range) * 3600000;
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a >= b || b - a > 31 * 86400000 || b > Date.now() + 60000) { setError('Choose a valid past range up to 31 days.'); return; }
+    setQuery({ clusterId, start: a, end: b, group, includeIdle: idle });
+  };
+  const rows = (report?.allocations ?? []).filter(a => a.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'ascending' ? a.total - b.total : b.total - a.total);
+  const pages = Math.max(1, Math.ceil(rows.length / 50)), currentPage = Math.min(page, pages - 1);
+  const exportReport = (format: 'csv' | 'json') => {
+    if (!report || error || busy) return;
+    const content = format === 'csv' ? costCsv(report, search) : JSON.stringify({ cluster: clusterName, ...report, filter: search, allocations: rows }, null, 2);
+    void request('cost:export', { text: content, format }).then(result => { if (result.saved) useStore.getState().notify('Cost report exported.'); }).catch(e => useStore.getState().notify(e.message));
+  };
+  const buckets = report?.buckets ?? [], max = Math.max(0.01, ...buckets.map(b => Math.abs(b.total)));
+  return <section className="cost-dashboard"><header><div><h1>Cost dashboard</h1><p>{clusterName}</p></div><button onClick={() => navigate('cluster-settings')}>Cluster settings</button></header>
+    <div className="cost-controls"><label>Time range<select aria-label="Cost time range" value={range} onChange={e => setRange(e.target.value)}><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="custom">Custom dates</option></select></label>
+      {range === 'custom' && <><label>Start (local time)<input aria-label="Cost start" type="datetime-local" value={start} onChange={e => setStart(e.target.value)}/></label><label>End (local time)<input aria-label="Cost end" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)}/></label></>}
+      <label>Group by<select aria-label="Cost grouping" value={group} onChange={e => setGroup(e.target.value as CostGroup)}><option value="namespace">Namespace</option><option value="node">Node</option><option value="controller">Workload (namespace / kind / controller)</option></select></label>
+      <label className="check-row"><input type="checkbox" checked={idle} onChange={e => setIdle(e.target.checked)}/>Include idle costs</label><button className="primary" onClick={apply}>Apply range</button><button disabled={busy} onClick={() => setRefresh(v => v + 1)}>Refresh report</button>
+    </div>
+    {busy && <p role="status">Loading cost allocations...</p>}{error && <p className="inline-error" role="alert">{error}{report ? ' Displayed report may be stale. Export is disabled until a successful refresh.' : ''}</p>}
+    {report && <><p className="muted">Source: {report.source} · {report.currency} · {new Date(report.start).toLocaleString()} to {new Date(report.end).toLocaleString()} · Grouped by {report.group} · Generated {new Date(report.generatedAt).toLocaleString()}</p>
+      {report.warnings.map(w => <p key={w} className="cost-warning">{w}</p>)}
+      <div className="cost-summary"><article><span>{report.estimated ? 'Estimated cost' : 'Allocated cost'}</span><strong>{number(report.total)}</strong><small>{report.currency}</small></article><article><span>Allocations</span><strong>{report.allocations.length}</strong><small>Including idle when returned</small></article><article><span>Recorded intervals</span><strong>{buckets.length}</strong><small>{report.estimated ? 'Estimates have no recorded history' : 'Only intervals returned by the provider'}</small></article><article><span>Largest allocation</span><strong>{number(report.allocations[0]?.total)}</strong><small>{report.allocations[0]?.name ?? 'Unavailable'}</small></article></div>
+      <h2>{report.estimated ? 'Historical timeline unavailable for estimates' : 'Allocation timeline'}</h2>
+      {buckets.length ? <svg className="cost-timeline" viewBox="0 0 900 220" role="img" aria-label="Historical cost timeline"><line x1="65" x2="880" y1="105" y2="105" stroke="#58616a"/>{[-1, 0, 1].map(t => <text key={t} x="60" y={109 - t * 75} textAnchor="end" className="chart-axis">{number(max * t)}</text>)}{buckets.map((b, i) => {
+        const x = 65 + (b.start - report.start) / (report.end - report.start) * 815, width = Math.max(1, (b.end - b.start) / (report.end - report.start) * 815 - 2), height = Math.abs(b.total) / max * 75;
+        return <rect key={i} x={x} y={b.total >= 0 ? 105 - height : 105} width={width} height={height} fill="#429ccc"><title>{new Date(b.start).toLocaleString()} – {new Date(b.end).toLocaleString()}: {number(b.total)} {report.currency}</title></rect>;
+      })}{[0, .25, .5, .75, 1].map(t => <text key={t} x={65 + t * 815} y="205" textAnchor={t === 1 ? 'end' : t === 0 ? 'start' : 'middle'} className="chart-axis">{new Date(report.start + t * (report.end - report.start)).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' })}</text>)}</svg> : <p className="muted">No dated allocation intervals were returned. Missing data is not shown as zero cost.</p>}
+      <div className="cost-controls"><input aria-label="Search cost allocations" placeholder="Search allocations" value={search} onChange={e => setSearch(e.target.value)}/><select aria-label="Sort cost allocations" value={sort} onChange={e => setSort(e.target.value)}><option value="total">Cost: highest first</option><option value="ascending">Cost: lowest first</option><option value="name">Name</option></select><button disabled={busy || !!error || !rows.length} onClick={() => exportReport('csv')}>Export CSV</button><button disabled={busy || !!error || !report.allocations.length} onClick={() => exportReport('json')}>Export JSON</button><span>{rows.length} matching allocations · {number(rows.reduce((sum, r) => sum + r.total, 0))} {report.currency}</span></div>
+      <p className="muted">Search filters the allocation table and exports. Summary and timeline cover the whole report. JSON also includes the full timeline. Provider totals may include adjustments; component columns are unadjusted reported costs. Missing components show “Unavailable”.</p>
+      <div className="cost-table"><table><thead><tr><th>Allocation</th><th>Total</th>{costComponents.map(k => <th key={k}>{k === 'loadBalancer' ? 'Load balancer' : k}</th>)}</tr></thead><tbody>{rows.slice(currentPage * 50, (currentPage + 1) * 50).map(row => <tr key={row.name}><td><button onClick={() => setSelected(row)}>{row.name}</button></td><td>{number(row.total)}</td>{costComponents.map(k => <td key={k}>{number(row.components[k])}</td>)}</tr>)}</tbody></table></div>
+      {!rows.length && <p>No matching allocations.</p>}<div className="pagination"><button disabled={!currentPage} onClick={() => setPage(v => v - 1)}>Previous</button><span>Page {currentPage + 1} / {pages}</span><button disabled={currentPage + 1 >= pages} onClick={() => setPage(v => v + 1)}>Next</button></div>
+      {selected && <section className="cost-detail"><header><h2>{selected.name}</h2><button onClick={() => setSelected(undefined)}>Close allocation</button></header><p>Total: {number(selected.total)} {report.currency}</p><table><thead><tr><th>Interval start</th><th>Interval end</th><th>Allocated cost</th></tr></thead><tbody>{buckets.map(b => ({ ...b, allocation: b.allocations.find(a => a.name === selected.name) })).filter(b => b.allocation).map(b => <tr key={b.start}><td>{new Date(b.start).toLocaleString()}</td><td>{new Date(b.end).toLocaleString()}</td><td>{number(b.allocation!.total)}</td></tr>)}</tbody></table>{!buckets.length && <p>No recorded intervals available.</p>}</section>}
+      <p className="muted">Allocation reports reflect provider pricing and retention, not a verified cloud invoice. Currency is labelled only when the provider supplies it; otherwise values use provider units.</p>
+    </>}
+  </section>;
+}
