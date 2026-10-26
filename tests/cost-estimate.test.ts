@@ -1,5 +1,5 @@
 ﻿import { beforeEach, expect, it, vi } from 'vitest';
-import { allocateEstimate, CostEstimates, estimatePoints, estimateQueries } from '../src/main/cost-estimate';
+import { allocateEstimate, CostEstimates, estimateWindow, estimatePoints, estimateQueries } from '../src/main/cost-estimate';
 import { priceNode, awsHourly, azureHourly, nodeFacts } from '../src/main/node-pricing';
 import { defaultClusterSettings as defaults } from '../src/shared/cluster-settings';
 import { clusterSettingsSchema } from '../src/main/cluster-settings';
@@ -91,6 +91,7 @@ it('queries selected Prometheus, discovers nodes and caches identical requests',
   const input = { ...query, end: 120000 }; const report = await service.read(input);
   expect(report.buckets).toHaveLength(2); expect(report.estimated).toBe(true); expect(report.source).toContain('metrics/prom');
   const calls = vi.mocked(kubeJson).mock.calls.length; await service.read(input); expect(vi.mocked(kubeJson).mock.calls).toHaveLength(calls);
+  await service.read({ ...input, forceRefresh: true }); expect(vi.mocked(kubeJson).mock.calls.length).toBeGreaterThan(calls);
   expect(vi.mocked(kubeJson).mock.calls[1][1]).toContain('/namespaces/metrics/services/prom%3A9090/proxy/');
 });
 
@@ -105,5 +106,32 @@ it('reports actual observed bounds and missing intervals without filling gaps', 
   const rows = observations(); rows.cpuUsage[0].points.delete(hour);
   const report = allocateEstimate(query, hour, hour * 2, hour, rows, [price]);
   expect(report.historyCoverage).toMatchObject({ expectedIntervals: 2, observedIntervals: 1, missingIntervals: 1, observedMilliseconds: 3600000, observedStart: 3600000, observedEnd: 7200000 });
-  expect(report.warnings.join()).toContain('1 sampling intervals');
+  expect(report.warnings.join()).toContain('1 intervals are empty');
+});
+
+it('anchors every preset to the most recent complete minute with bounded in-range buckets', () => {
+  const end = Date.parse('2026-10-26T12:34:45Z');
+  for (const hours of [1, 6, 24, 168, 720]) {
+    const input = { start: end - hours * 3600000, end };
+    const window = estimateWindow(input);
+    expect(window.end).toBe(Math.floor(end / 60000) * 60);
+    expect((window.end - window.start) % window.step).toBe(0);
+    expect((window.start - window.step) * 1000).toBeGreaterThanOrEqual(input.start);
+    expect((window.end - window.start) / window.step + 1).toBeLessThanOrEqual(288);
+  }
+  expect(() => estimateWindow({ start: end - 10000, end })).toThrow('complete minute');
+});
+it('measures partially populated wide buckets instead of counting the entire bucket as observed', () => {
+  const rows = { ...observations(), availability: [point({}, 0.25)] };
+  const result = allocateEstimate(query, hour, hour * 2, hour, rows, [price]);
+  expect(result.coverage).toBe(0.25); expect(result.historyCoverage?.observedMilliseconds).toBe(1800000);
+  expect(result.historyCoverage?.partialIntervals).toBe(2); expect(result.warnings.join()).toContain('2 intervals contain only partial telemetry');
+});
+
+it('returns an honest empty report for a valid range without retained history', async () => {
+  vi.mocked(kubeJson).mockImplementation(async (_config, path) => path === '/api/v1/nodes' ? { items: [] } : { status: 'success', data: { resultType: 'matrix', result: [] } });
+  const settings = { ...defaults, costSource: 'estimate', estimatePublicPrices: false, prometheus: { namespace: 'm', service: 'p', port: 9090 } };
+  const report = await new CostEstimates({ get: () => ({ config: {} }), settings: () => settings } as any).read({ ...query, end: 120000 });
+  expect(report.total).toBeNull(); expect(report.buckets).toEqual([]); expect(report.idleCost).toBeUndefined();
+  expect(report.warnings.join()).toContain('No complete CPU/memory');
 });

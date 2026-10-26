@@ -2,16 +2,16 @@ export const costGroups = ['namespace', 'node', 'controller'] as const;
 export type CostGroup = typeof costGroups[number];
 export const costComponents = ['cpu', 'memory', 'gpu', 'storage', 'network', 'loadBalancer', 'shared', 'external'] as const;
 export type CostComponent = typeof costComponents[number];
-export interface CostQuery { clusterId: string; start: number; end: number; group: CostGroup; includeIdle: boolean }
+export interface CostQuery { clusterId: string; start: number; end: number; group: CostGroup; includeIdle: boolean; forceRefresh?: boolean }
 export interface CostAllocation { name: string; total: number; components: Partial<Record<CostComponent, number>> }
-export interface CostBucket { start: number; end: number; total: number; allocations: CostAllocation[] }
+export interface CostBucket { start: number; end: number; total: number; allocations: CostAllocation[]; observedMilliseconds?: number }
 export interface NodePrice {
   node: string; cloud: string; region: string; instanceType: string; spot: boolean; cpu: number; memoryGiB: number;
   hourly: number; cpuHourly: number; memoryHourly: number; source: string; fetchedAt?: number;
 }
 export interface CostEfficiency { cpu?: number; memory?: number }
 export interface CostHistoryCoverage {
-  expectedIntervals: number; observedIntervals: number; missingIntervals: number;
+  expectedIntervals: number; observedIntervals: number; missingIntervals: number; partialIntervals?: number;
   observedMilliseconds: number; edgeExcludedMilliseconds: number; observedStart?: number; observedEnd?: number;
 }
 export interface CostReport {

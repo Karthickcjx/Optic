@@ -7,9 +7,16 @@ import type { CostAllocation, CostBucket, CostQuery, CostReport, NodePrice } fro
 
 type Series = { metric: Record<string, string>; values: [number, string][] };
 type Point = { labels: Record<string, string>; points: Map<number, number> };
-type Metric = 'cpuRequests' | 'memoryRequests' | 'cpuUsage' | 'memoryUsage' | 'cpuCapacity' | 'memoryCapacity' | 'owners' | 'replicaOwners';
+type Metric = 'cpuRequests' | 'memoryRequests' | 'cpuUsage' | 'memoryUsage' | 'cpuCapacity' | 'memoryCapacity' | 'owners' | 'replicaOwners' | 'availability';
 type Observations = Partial<Record<Metric, Point[]>>;
 const GiB = 1024 ** 3;
+export function estimateWindow(query: Pick<CostQuery, 'start' | 'end'>) {
+  const step = Math.max(60, Math.ceil((query.end - query.start) / 1000 / 288 / 60) * 60);
+  const end = Math.floor(query.end / 60000) * 60;
+  const intervals = Math.floor((end - query.start / 1000) / step);
+  if (intervals < 1) throw new AppError('COST_RANGE', 'Select a range containing at least one complete minute for cost estimates.');
+  return { start: end - (intervals - 1) * step, end, step };
+}
 export function estimateQueries(step: number, workloads: boolean): Partial<Record<Metric, string>> {
   const podNodes = 'max by (namespace,pod,node) (kube_pod_info)';
   const running = 'max by (namespace,pod,container) (kube_pod_container_status_running)';
@@ -22,7 +29,13 @@ export function estimateQueries(step: number, workloads: boolean): Partial<Recor
     return average(`sum by (namespace,pod,node) ((${values}) * on(namespace,pod,container) group_left() ${running})`);
   };
   const usage = (expression: string) => average(`sum by (namespace,pod) (max by (namespace,pod,container) (${expression})) * on(namespace,pod) group_left(node) ${podNodes}`);
+  const available = 'vector(1)' + [
+    'kube_pod_container_resource_requests{resource="cpu"}', 'kube_pod_container_resource_requests{resource="memory"}',
+    'container_cpu_usage_seconds_total{container!="",container!="POD"}', 'container_memory_working_set_bytes{container!="",container!="POD"}',
+    'kube_node_status_capacity{resource="cpu"}', 'kube_node_status_capacity{resource="memory"}', 'kube_pod_info'
+  ].map(metric => ` and on() count(${metric})`).join('');
   return {
+    availability: `clamp_max(count_over_time((${available})[${step}s:60s]) / ${step / 60}, 1)`,
     cpuRequests: requests('cpu'), memoryRequests: requests('memory'),
     cpuUsage: usage('rate(container_cpu_usage_seconds_total{container!="",container!="POD"}[5m])'),
     memoryUsage: usage('container_memory_working_set_bytes{container!="",container!="POD"}'),
@@ -70,9 +83,13 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
     return map;
   };
   const podOwners = ownerIndex(observations.owners, 'pod'), replicaOwners = ownerIndex(observations.replicaOwners, 'replicaset');
+  const availability = index(observations.availability, []).get('[]');
   const totals = new Map<string, CostAllocation>(), buckets: CostBucket[] = [];
+  let observedMilliseconds = 0, partialIntervals = 0;
   let usedCpu = 0, requestedCpu = 0, usedMemory = 0, requestedMemory = 0, idleCost = 0, incomplete = false, ownerFallback = false, rowCount = 0;
   for (let time = start; time <= end; time += step) {
+    const fraction = observations.availability === undefined ? 1 : Math.min(1, availability?.get(time) ?? 0);
+    if (fraction <= 0) continue;
     const rows = new Map<string, CostAllocation>(), charged = new Map<string, { cpu: number; memory: number }>(), partialNodes = new Set<string>();
     for (const key of keys) {
       const [namespace, pod, node] = JSON.parse(key) as string[], price = rates.get(node);
@@ -110,19 +127,20 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
     rowCount += rows.size; if (rowCount > 20000) throw new AppError('COST_LIMIT', 'The estimate exceeds 20,000 allocation rows. Choose namespace or node grouping.');
     const allocations = [...rows.values()];
     for (const row of allocations) add(totals, row.name, row.components.cpu!, row.components.memory!);
-    buckets.push({ start: (time - step) * 1000, end: time * 1000, total: allocations.reduce((s, r) => s + r.total, 0), allocations });
+    observedMilliseconds += step * 1000 * fraction;
+    if (fraction < 0.999) partialIntervals++;
+    buckets.push({ observedMilliseconds: step * 1000 * fraction, start: (time - step) * 1000, end: time * 1000, total: allocations.reduce((s, r) => s + r.total, 0), allocations });
   }
   const allocations = [...totals.values()].sort((a, b) => b.total - a.total);
   if (allocations.some(a => !Number.isFinite(a.total)) || !Number.isFinite(idleCost)) throw new AppError('COST_METRICS', 'Prometheus returned values too large to estimate costs.');
-  const coverage = buckets.length * step * 1000 / (query.end - query.start);
+  const coverage = observedMilliseconds / (query.end - query.start);
   const expectedIntervals = Math.max(0, Math.floor((end - start) / step) + 1);
   const missingIntervals = Math.max(0, expectedIntervals - buckets.length);
-  const observedMilliseconds = buckets.length * step * 1000;
   const edgeExcludedMilliseconds = Math.max(0, query.end - query.start - expectedIntervals * step * 1000);
-  const historyCoverage = { expectedIntervals, observedIntervals: buckets.length, missingIntervals, observedMilliseconds, edgeExcludedMilliseconds, observedStart: buckets[0]?.start, observedEnd: buckets.at(-1)?.end };
+  const historyCoverage = { expectedIntervals, observedIntervals: buckets.length, missingIntervals, partialIntervals, observedMilliseconds, edgeExcludedMilliseconds, observedStart: buckets[0]?.start, observedEnd: buckets.at(-1)?.end };
   const duration = (ms: number) => ms >= 3600000 ? `${(ms / 3600000).toFixed(1)} hours` : `${Math.round(ms / 60000)} minutes`;
   return { ...query, generatedAt: Date.now(), source: 'Prometheus estimate', currency: 'USD', estimated: true, allocations, buckets, total: allocations.length ? allocations.reduce((s, a) => s + a.total, 0) : null,
-    idleCost, efficiency: { cpu: requestedCpu > 0 ? usedCpu / requestedCpu : undefined, memory: requestedMemory > 0 ? usedMemory / requestedMemory : undefined }, nodePrices: prices, coverage, historyCoverage,
+    idleCost: allocations.length ? idleCost : undefined, efficiency: { cpu: requestedCpu > 0 ? usedCpu / requestedCpu : undefined, memory: requestedMemory > 0 ? usedMemory / requestedMemory : undefined }, nodePrices: prices, coverage, historyCoverage,
     notes: [
       'Historical usage estimate at current prices, not a cloud invoice. CPU/RAM allocations use the higher of average requests and usage. Storage, network, discounts and separate GPU charges are excluded; public VM prices may include GPUs.',
       'Node metadata and public prices describe the current configuration, not historical instance changes. CPU/RAM price splitting uses the configured resource-rate weights.',
@@ -131,7 +149,7 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
       ...(prices.some(p => p.source.includes('fallback')) ? ['Some nodes use configurable fallback rates because public pricing is unavailable or unsupported. These rates are assumptions, not discovered cloud prices.'] : []),
       ...(prices.some(p => p.spot && !p.source.includes('spot retail')) ? ['Spot nodes use an on-demand reference or configured rates; actual spot charges may differ.'] : []),
       ...(incomplete ? ['Telemetry is incomplete. Affected allocations and idle amounts are omitted; totals are partial.'] : []),
-      ...(missingIntervals > 0 ? [`Historical coverage is partial: ${duration(observedMilliseconds)} of usable observations in the selected ${duration(query.end - query.start)}. ${missingIntervals} sampling intervals have no usable cost data. Choose a shorter range or check Prometheus retention and scrape health; unobserved time is not charged.`] : []),
+      ...(missingIntervals > 0 || partialIntervals > 0 ? [`Historical coverage is partial: ${duration(observedMilliseconds)} of usable observations in the selected ${duration(query.end - query.start)}. ${missingIntervals} intervals are empty and ${partialIntervals} intervals contain only partial telemetry. Choose a shorter range or check Prometheus retention and scrape health; unobserved time is not charged.`] : []),
       ...(ownerFallback ? ['Some historical owners are unavailable or ambiguous. Those workloads are grouped by Pod.'] : []),
       ...(!allocations.length ? ['No complete CPU/memory cost observations were available for this range. Check kube-state-metrics, cAdvisor and Prometheus retention.'] : [])
     ] };
@@ -143,8 +161,9 @@ export class CostEstimates {
     const settings = this.clusters.settings(query.clusterId);
     // Verify connection before using cached observations from that context.
     this.clusters.get(query.clusterId);
-    const key = JSON.stringify([query, settings]), cached = this.cache.get(key);
-    if (cached && cached.expires > Date.now()) return cached.value;
+    const { forceRefresh, ...range } = query;
+    const key = JSON.stringify([range, settings]), cached = this.cache.get(key);
+    if (!forceRefresh && cached && cached.expires > Date.now()) return cached.value;
     const value = this.load(query); this.cache.set(key, { expires: Date.now() + 30000, value });
     if (this.cache.size > 12) this.cache.delete(this.cache.keys().next().value!);
     void value.catch(() => { if (this.cache.get(key)?.value === value) this.cache.delete(key); }); return value;
@@ -152,9 +171,7 @@ export class CostEstimates {
   private async load(query: CostQuery): Promise<CostReport> {
     const settings = this.clusters.settings(query.clusterId), config = this.clusters.get(query.clusterId).config;
     if (settings.metricsSource === 'none') throw new AppError('COST_METRICS', 'Enable Prometheus in Cluster Settings > Metrics to estimate costs.');
-    const step = Math.max(60, Math.ceil((query.end - query.start) / 1000 / 288 / 60) * 60);
-    const start = Math.ceil(query.start / 60000) * 60 + step, end = Math.floor(query.end / 1000);
-    if (start > end) throw new AppError('COST_RANGE', 'Select a range with at least two complete minutes for cost estimates.');
+    const { start, end, step } = estimateWindow(query);
     const endpoints = settings.prometheus.service ? [settings.prometheus] : (await new Providers(this.clusters).discover(query.clusterId, /prometheus/i)).slice(0, 3);
     const nodes = await kubeJson<any>(config, '/api/v1/nodes');
     if (!Array.isArray(nodes.items) || nodes.items.length > 500) throw new AppError('COST_LIMIT', 'Cost estimates support up to 500 nodes.');
@@ -170,7 +187,7 @@ export class CostEstimates {
       for (const result of results) if (result.status === 'fulfilled') observations[result.value.metric] = result.value.points;
       const limit = results.find(r => r.status === 'rejected' && r.reason instanceof AppError && r.reason.code === 'COST_LIMIT');
       if (limit?.status === 'rejected') throw limit.reason;
-      if (['cpuRequests', 'memoryRequests', 'cpuUsage', 'memoryUsage', 'cpuCapacity', 'memoryCapacity'].some(k => !observations[k as Metric]?.some(p => p.points.size))) continue;
+      if (['cpuRequests', 'memoryRequests', 'cpuUsage', 'memoryUsage', 'cpuCapacity', 'memoryCapacity', 'availability'].some(k => observations[k as Metric] === undefined)) continue;
       const byName = new Map<string, any>(nodes.items.map((n: any) => [n.metadata.name, n]));
       for (const point of observations.cpuCapacity ?? []) if (point.labels.node && !byName.has(point.labels.node)) {
         const ram = observations.memoryCapacity?.find(p => p.labels.node === point.labels.node);
