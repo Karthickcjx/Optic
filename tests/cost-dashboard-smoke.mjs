@@ -6,11 +6,19 @@ import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'optic-cost-smoke-'));
 const sockets = new Set(), requests = [];
-let fail = false, memoryMissing = false;
-const nodes = ['control', 'worker'].map((name, i) => ({ apiVersion: 'v1', kind: 'Node', metadata: { name, uid: name, labels: i ? {} : { 'node-role.kubernetes.io/control-plane': '' } }, status: { allocatable: { cpu: '4', memory: '8Gi', pods: '110' }, addresses: [{ address: `10.0.0.${i + 1}` }], conditions: [{ type: 'Ready', status: 'True' }] } }));
+let fail = false, memoryMissing = false, estimateMissing = false;
+const nodes = ['control', 'worker'].map((name, i) => ({ apiVersion: 'v1', kind: 'Node', metadata: { name, uid: name, labels: i ? {} : { 'node-role.kubernetes.io/control-plane': '' } }, status: { capacity: { cpu: '4', memory: '8Gi' }, allocatable: { cpu: '4', memory: '8Gi', pods: '110' }, addresses: [{ address: `10.0.0.${i + 1}` }], conditions: [{ type: 'Ready', status: 'True' }] } }));
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost'); res.setHeader('Content-Type', 'application/json');
   if (url.searchParams.has('watch')) { res.writeHead(200); res.flushHeaders(); return; }
+  if (url.pathname.endsWith('/query_range')) {
+    const expression = url.searchParams.get('query'), start = Number(url.searchParams.get('start')), end = Number(url.searchParams.get('end')), step = Number(url.searchParams.get('step'));
+    const capacity = expression.includes('kube_node_status_capacity'), memory = expression.includes('resource="memory"') || expression.includes('container_memory_working_set_bytes'), request = expression.includes('kube_pod_container_resource_requests');
+    const value = capacity ? (memory ? 8 * 1024 ** 3 : 4) : request ? (memory ? 2 * 1024 ** 3 : 1) : (memory ? 1024 ** 3 : 0.5);
+    const labels = capacity ? { node: 'worker' } : { namespace: 'production', pod: 'api', node: 'worker' };
+    const values = Array.from({ length: Math.floor((end - start) / step) + 1 }, (_, i) => [start + i * step, String(value)]);
+    res.end(JSON.stringify({ status: 'success', data: { resultType: 'matrix', result: estimateMissing ? [] : [{ metric: labels, values }] } })); return;
+  }
   if (url.pathname.endsWith('/allocation')) {
     requests.push(Object.fromEntries(url.searchParams));
     if (fail) { res.writeHead(403); res.end('{}'); return; }
@@ -91,8 +99,32 @@ try {
   await page.getByLabel('Cost end').fill('2026-03-02T00:00');
   await page.getByRole('button', { name: 'Apply range', exact: true }).click();
   await expect(dashboard.getByRole('alert')).toContainText('valid past range');
+  // Exercise the real Estimate IPC/settings path without an allocation service or external pricing calls.
+  await page.evaluate(async () => {
+    const clusters = await window.desktop.request('clusters:list'); const clusterId = clusters.data.clusters[0].id;
+    const saved = await window.desktop.request('settings:get', { clusterId });
+    const result = await window.desktop.request('settings:save', { clusterId, settings: { ...saved.data, costSource: 'estimate', estimatePublicPrices: false, prometheus: { namespace: 'metrics', service: 'prometheus', port: 9090 } } });
+    if (!result.ok) throw new Error(result.error.message);
+  });
+  await page.getByLabel('Cost time range').selectOption('24');
+  await page.getByLabel('Cost grouping').selectOption('namespace');
+  await page.getByLabel('Include idle costs').check();
+  await page.getByRole('button', { name: 'Apply range', exact: true }).click();
+  await expect(dashboard).toContainText('Prometheus estimate');
+  await expect(chart.locator('rect')).toHaveCount(287);
+  await expect(dashboard).toContainText('50.0%');
+  await dashboard.locator('.cost-node-prices summary').click();
+  await expect(dashboard.locator('.cost-node-prices')).toContainText('Configured CPU/RAM fallback rates');
+  await dashboard.evaluate(e => { e.scrollTop = 0; }); await capture('05-prometheus-estimate');
+  await page.getByRole('button', { name: 'Export JSON' }).click();
+  await expect.poll(async () => { try { return JSON.parse(await readFile(exportPath, 'utf8')).estimated; } catch { return false; } }).toBe(true);
+  const estimate = JSON.parse(await readFile(exportPath, 'utf8'));
+  assert.ok(estimate.idleCost > 0); assert.equal(estimate.efficiency.cpu, 0.5); assert.ok(estimate.nodePrices.length > 0); assert.ok(estimate.buckets.length > 0);
+  estimateMissing = true;
+  await page.getByRole('button', { name: 'Apply range', exact: true }).click();
+  await expect(dashboard.getByRole('alert')).toContainText('OpenCost is not required');
   assert.deepEqual(errors, []);
-  console.log('PASS: cost history, date ranges, grouping, idle costs, allocation detail, search, JSON download, stale report, unavailable data and invalid dates.');
+  console.log('PASS: cost history, date ranges, grouping, idle costs, allocation detail, search, JSON download, stale report, unavailable data, invalid dates and Prometheus estimates with node rates, idle costs and efficiency.');
 
 } catch (error) {
   await mkdir('artifacts', { recursive: true }); if (app) await (await app.firstWindow()).screenshot({ path: 'artifacts/cost-dashboard-failure.png' }).catch(() => {}); throw error;

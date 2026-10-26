@@ -16,13 +16,11 @@ it('does not report empty or malformed Prometheus responses as healthy', async (
   vi.mocked(kubeJson).mockResolvedValue({ status: 'success', data: { result: [] } });
   await expect(providers.prometheus('c')).rejects.toThrow('No readable Prometheus');
 });
-it('aggregates cost allocations and labels rate-based estimates explicitly', async () => {
+it('aggregates cost allocations through the shared report service', async () => {
   const providers = new Providers({ get: () => ({ config: {} }), settings: () => ({ ...defaultClusterSettings, costSource: 'opencost', costEndpoint: { namespace: 'cost', service: 'cost', port: 9003 } }) } as any);
   vi.mocked(kubeJson).mockResolvedValue({ data: [{ team: { totalCost: 2 } }, { team: { totalCost: 3 } }] });
   expect((await providers.cost('c')).total).toBe(5);
-  const estimates = new Providers({ get: () => ({ config: {} }), settings: () => ({ ...defaultClusterSettings, costSource: 'estimate', estimatedNodeHourlyCost: 0.5 }) } as any);
-  vi.mocked(kubeJson).mockResolvedValue({ items: [{ metadata: { name: 'worker' } }] });
-  const result = await estimates.cost('c'); expect(result.total).toBe(12); expect(result.warning).toContain('not a billing figure');
+
 });
 it('does not issue cost requests when disabled', async () => {
   const providers = new Providers({ get: () => ({ config: {} }), settings: () => ({ ...defaultClusterSettings, costSource: 'off' }) } as any);

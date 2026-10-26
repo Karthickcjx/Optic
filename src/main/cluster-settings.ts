@@ -13,6 +13,9 @@ export const clusterSettingsSchema = z.object({
   accessibleNamespaces: z.array(name).max(200), metricsSource: z.enum(['automatic', 'prometheus', 'metrics-server', 'none']),
   hiddenMetrics: z.array(z.enum(metricCategories)).max(metricCategories.length), prometheus: endpoint,
   costSource: z.enum(['automatic', 'kubecost', 'opencost', 'estimate', 'off']), costEndpoint: endpoint,
+  estimatePublicPrices: z.boolean().default(true),
+  estimatedCpuHourlyCost: z.number().finite().min(0.000001).max(100000).default(0.03),
+  estimatedMemoryHourlyCost: z.number().finite().min(0.000001).max(100000).default(0.004),
   estimatedNodeHourlyCost: z.number().finite().min(0).max(100000),
   nodeShellImage: z.string().min(1).max(512).regex(/^[a-zA-Z0-9][a-zA-Z0-9./_:@-]*$/), nodeShellPullSecret: z.union([name, z.literal('')])
 });

@@ -1,3 +1,4 @@
+import { CostEstimates } from './cost-estimate';
 import type { ClusterManager } from './clusters';
 import { Providers, serviceProxy } from './providers';
 import { kubeJson } from './kube-http';
@@ -59,19 +60,14 @@ export function parseCostReport(response: any, query: CostQuery): Pick<CostRepor
   ] };
 }
 export class CostReports {
-  constructor(private clusters: ClusterManager) {}
+  private estimates: CostEstimates;
+  constructor(private clusters: ClusterManager) { this.estimates = new CostEstimates(clusters); }
   async read(query: CostQuery): Promise<CostReport> {
     const settings = this.clusters.settings(query.clusterId);
     const base: CostReport = { source: settings.costSource, currency: 'provider units', estimated: false, start: query.start, end: query.end, group: query.group, generatedAt: Date.now(), total: null, allocations: [], buckets: [], warnings: [] };
     if (settings.costSource === 'off') return { ...base, warnings: ['Cost monitoring is disabled. Enable a provider in Cluster Settings > Cost.'] };
     const config = this.clusters.get(query.clusterId).config;
-    if (settings.costSource === 'estimate') {
-      if (!settings.estimatedNodeHourlyCost) return { ...base, estimated: true, currency: 'USD', group: 'node', warnings: ['Set an estimated hourly node rate in Cluster Settings > Cost.'] };
-      const nodes = await kubeJson<any>(config, '/api/v1/nodes');
-      const hours = (query.end - query.start) / 3600000;
-      const allocations = nodes.items.map((node: any) => ({ name: node.metadata.name, total: settings.estimatedNodeHourlyCost * hours, components: {} }));
-      return { ...base, currency: 'USD', estimated: true, group: 'node', allocations, total: allocations.reduce((sum: number, row: CostAllocation) => sum + row.total, 0), warnings: ['Projection from the current node count and configured hourly rate over the selected duration. This is not historical spending or a cloud bill; storage and network are excluded.'] };
-    }
+    if (settings.costSource === 'estimate') return this.estimates.read(query);
     const endpoints = settings.costEndpoint.service ? [settings.costEndpoint] : (await new Providers(this.clusters).discover(query.clusterId, settings.costSource === 'opencost' ? /opencost/i : settings.costSource === 'kubecost' ? /kubecost|cost-analyzer/i : /opencost|kubecost|cost-analyzer/i)).slice(0, 3);
     const params = new URLSearchParams({ window: `${new Date(query.start).toISOString()},${new Date(query.end).toISOString()}`, aggregate: query.group === 'controller' ? 'namespace,controllerKind,controller' : query.group, step: query.end - query.start <= 2 * 86400000 ? '1h' : '1d', resolution: '5m', accumulate: 'false', includeIdle: String(query.includeIdle), shareIdle: 'false' });
     let denied = false;
@@ -85,6 +81,7 @@ export class CostReports {
         } catch (e) { if (e instanceof AppError) throw e; const status = (e as any)?.statusCode; if (status === 401 || status === 403) denied = true; if (status !== 404) break; }
       }
     }
+    if (settings.costSource === 'automatic' && !settings.costEndpoint.service && !denied) return this.estimates.read(query);
     throw new AppError(denied ? 'COST_FORBIDDEN' : 'COST_UNAVAILABLE', denied ? 'Cost service access was denied. Check services/proxy permissions and provider authentication.' : 'No readable allocation API was found. Configure OpenCost or Kubecost in Cluster Settings > Cost and check service connectivity.');
   }
 }

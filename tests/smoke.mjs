@@ -334,7 +334,8 @@ try {
   await page.getByRole('button', { name: 'Save settings', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Settings saved');
   await page.getByRole('button', { name: 'Read saved cost source', exact: true }).click();
-  await expect(page.locator('.settings-info')).toContainText('USD 6.00');
+  // This fixture has no Prometheus history: Estimate must not fabricate 24 hours from current nodes.
+  await expect(page.getByRole('alert')).toContainText('OpenCost is not required');
   await capture('22-cost-estimate');
   await settingsNav.getByRole('button', { name: 'Monitoring Stack', exact: true }).click();
   // Keep chart discovery deterministic and offline; backend lookup is covered by unit tests.

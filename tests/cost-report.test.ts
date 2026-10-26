@@ -53,12 +53,9 @@ it('supports Kubecost route fallback and reports permission failures', async () 
   vi.mocked(kubeJson).mockRejectedValue({ statusCode: 403 });
   await expect(new CostReports(manager()).read(query)).rejects.toThrow('access was denied');
 });
-it('labels rate projections and disabled reporting without historical buckets', async () => {
+it('does not query metrics or pricing when disabled', async () => {
   const disabled = await new CostReports(manager({ costSource: 'off' })).read(query);
   expect(disabled.total).toBeNull(); expect(kubeJson).not.toHaveBeenCalled();
-  vi.mocked(kubeJson).mockResolvedValue({ items: [{ metadata: { name: 'worker' } }] });
-  const result = await new CostReports(manager({ costSource: 'estimate', estimatedNodeHourlyCost: 0.5 })).read(query);
-  expect(result.total).toBe(1); expect(result.estimated).toBe(true); expect(result.buckets).toEqual([]); expect(result.group).toBe('node');
 });
 it('exports filtered CSV with provenance and spreadsheet formula escaping', async () => {
   vi.mocked(kubeJson).mockResolvedValue({ data: [{ '=formula,"test"': row(0, -1), excluded: row(1, 4) }] });
