@@ -7,10 +7,10 @@ const number = (n: number | undefined | null) => n === undefined || n === null ?
 export function CostDashboard() {
   const clusterId = useStore(s => s.clusterId), navigate = useStore(s => s.navigate);
   const clusterName = useStore(s => s.clusters.find(c => c.id === clusterId)?.name ?? clusterId);
-  const [range, setRange] = useState('24'), [group, setGroup] = useState<CostGroup>('namespace'), [idle, setIdle] = useState(true);
-  const [start, setStart] = useState(() => dateInput(Date.now() - 86400000)), [end, setEnd] = useState(() => dateInput(Date.now()));
-  const [query, setQuery] = useState<CostQuery>(() => ({ clusterId, start: Date.now() - 86400000, end: Date.now(), group: 'namespace', includeIdle: true }));
-  const [report, setReport] = useState<CostReport>(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [formError, setFormError] = useState(''), [appliedRange, setAppliedRange] = useState('24');
+  const [range, setRange] = useState('1'), [group, setGroup] = useState<CostGroup>('namespace'), [idle, setIdle] = useState(true);
+  const [start, setStart] = useState(() => dateInput(Date.now() - 3600000)), [end, setEnd] = useState(() => dateInput(Date.now()));
+  const [query, setQuery] = useState<CostQuery>(() => { const end = Date.now(); return { clusterId, start: end - 3600000, end, group: 'namespace', includeIdle: true }; });
+  const [report, setReport] = useState<CostReport>(), [busy, setBusy] = useState(false), [error, setError] = useState(''), [formError, setFormError] = useState(''), [appliedRange, setAppliedRange] = useState('1');
   const [search, setSearch] = useState(''), [sort, setSort] = useState('total'), [page, setPage] = useState(0), [selected, setSelected] = useState<CostAllocation>();
   useEffect(() => {
     let active = true; setBusy(true); setError(''); setSelected(undefined);

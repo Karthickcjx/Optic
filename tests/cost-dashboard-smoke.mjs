@@ -59,11 +59,12 @@ try {
   await page.locator('.navigator').getByRole('button', { name: 'Cost', exact: true }).click();
   const dashboard = page.locator('.cost-dashboard');
   const chart = page.getByRole('img', { name: 'Historical cost timeline' });
-  await expect(chart.locator('rect')).toHaveCount(24);
-  await expect(dashboard.locator('.cost-summary')).toContainText('84.00');
+  await expect(page.getByLabel('Cost time range')).toHaveValue('1');
+  await expect(chart.locator('rect')).toHaveCount(1);
+  await expect(dashboard.locator('.cost-summary')).toContainText('3.50');
   await dashboard.getByRole('button', { name: 'production', exact: true }).click();
-  await expect(dashboard.locator('.cost-detail tbody tr')).toHaveCount(24);
-  await capture('01-daily-cost-and-detail');
+  await expect(dashboard.locator('.cost-detail tbody tr')).toHaveCount(1);
+  await capture('01-hourly-cost-and-detail');
   await dashboard.getByRole('button', { name: 'Close allocation' }).click();
   // Every allocation-provider preset and a rolling refresh.
   for (const [range, count] of [['1', 1], ['6', 6], ['24', 24], ['168', 7], ['720', 30]]) {
