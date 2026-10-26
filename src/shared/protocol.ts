@@ -1,3 +1,4 @@
+import type { OverviewHistory } from './metrics';
 import type { ResourceMetricRequest, ResourceMetricResult } from './resource-metrics';
 import type { ActionTarget, DeploymentRevision, DrainOptions, DrainPreview } from './resource-actions';
 import type { ResourceEdit } from './resource-editors';
@@ -59,6 +60,7 @@ export interface Requests {
   'clusters:import-clipboard': { input: { yaml: string }; output: { clusters: Cluster[]; warnings: string[] } };
   'clusters:import': { input: undefined; output: { clusters: Cluster[]; warnings: string[] } };
   'metrics:resource': { input: ResourceMetricRequest; output: ResourceMetricResult };
+  'metrics:history': { input: { clusterId: string; minutes: number }; output: OverviewHistory };
   'metrics:read': { input: { clusterId: string }; output: { nodes: Resource[]; pods: Resource[]; warning?: string; source?: string } };
   'resources:apply': { input: { clusterId: string; namespace?: string; yaml: string; dryRun: boolean }; output: { name: string; kind: string; namespace?: string } };
   'resources:scale': { input: Target & { replicas: number }; output: void };
@@ -80,7 +82,7 @@ export interface Requests {
   'stream:ack': { input: { id: string; seq: number }; output: void };
   'stream:close': { input: { id: string }; output: void };
 }
-export const channels: (keyof Requests)[] = ['nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
+export const channels: (keyof Requests)[] = ['metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 export interface DesktopAPI {
   request<K extends keyof Requests>(channel: K, input: Requests[K]['input']): Promise<Result<Requests[K]['output']>>;
   subscribe(listener: (event: StreamEvent) => void): () => void;

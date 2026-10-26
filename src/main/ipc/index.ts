@@ -1,3 +1,4 @@
+import { OverviewMetrics } from '../overview-metrics';
 import { ResourceMetrics } from '../resource-metrics';
 import { exportLogs } from '../log-export';
 import { ResourceActions } from '../resource-actions';
@@ -18,6 +19,7 @@ import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  const overviewMetrics = new OverviewMetrics(clusters);
   const resourceMetrics = new ResourceMetrics(clusters, resources);
   const actions = new ResourceActions(clusters, resources);
   const streams = new Streams(); const sessions = new SessionService(clusters, streams);
@@ -64,6 +66,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'clusters:import-clipboard': input => clusters.importClipboard(input.yaml),
     'clusters:import': async () => { const result = await dialog.showOpenDialog({ title: 'Add kubeconfig files', properties: ['openFile', 'multiSelections'] }); return result.canceled ? clusters.discover() : clusters.addPaths(result.filePaths); },
     'metrics:resource': input => resourceMetrics.read(input),
+    'metrics:history': input => overviewMetrics.read(input.clusterId, input.minutes),
     'metrics:read': input => resources.metrics(input.clusterId),
     'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun),
     'resources:scale': input => resources.scale(input, input.replicas),

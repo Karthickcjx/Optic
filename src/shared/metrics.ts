@@ -16,3 +16,16 @@ export function scopedUsage(samples: Resource[], nodes: Resource[], all: boolean
   });
   return { cpu: matches.reduce((sum, n) => sum + quantity(n.usage?.cpu), 0), memory: matches.reduce((sum, n) => sum + quantity(n.usage?.memory), 0), available: matches.length > 0 };
 }
+
+export interface OverviewHistory {
+  history: boolean; source: string; start: number; end: number; step: number;
+  samples: { time: number; nodes: Resource[] }[]; warning?: string;
+}
+export function historySegments(points: { time: number; value: number }[], step: number) {
+  const segments: typeof points[] = [];
+  for (const point of points) {
+    if (!segments.length || point.time - segments.at(-1)!.at(-1)!.time > step * 1.5) segments.push([]);
+    segments.at(-1)!.push(point);
+  }
+  return segments;
+}
