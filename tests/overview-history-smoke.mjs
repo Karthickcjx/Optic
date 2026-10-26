@@ -41,6 +41,11 @@ try {
   await page.locator('.navigator').getByRole('button', { name: 'Overview', exact: true }).click();
   const chart = page.getByRole('img', { name: 'Prometheus usage history', exact: true });
   await expect(chart.locator('circle')).toHaveCount(50);
+  await chart.hover();
+  await expect(page.getByRole('tooltip')).toContainText('CPU:');
+  await page.getByRole('img', { name: 'CPU: 0.50 used', exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('Allocatable:');
+  await page.mouse.move(0, 0);
   await expect(chart.locator('polyline')).toHaveCount(2); // A missing scrape interval stays a gap.
   assert.ok(requests[0].start < Date.now() / 1000 - 14 * 60);
   await expect(page.locator('.overview-page')).toContainText('History source: Prometheus');

@@ -62,6 +62,14 @@ try {
   await expect(page.getByLabel('Cost time range')).toHaveValue('1');
   await expect(chart.locator('rect')).toHaveCount(1);
   await expect(dashboard.locator('.cost-summary')).toContainText('3.50');
+  await chart.hover();
+  await expect(page.getByRole('tooltip')).toContainText('Cost: 3.50');
+  await chart.focus();
+  await chart.press('End');
+  await expect(page.getByRole('tooltip')).toBeVisible();
+  await chart.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+
   await dashboard.getByRole('button', { name: 'production', exact: true }).click();
   await expect(dashboard.locator('.cost-detail tbody tr')).toHaveCount(1);
   await capture('01-hourly-cost-and-detail');

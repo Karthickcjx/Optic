@@ -1,3 +1,4 @@
+import { Chart } from './Chart';
 import { useEffect, useState } from 'react';
 import type { Resource, Target } from '../../shared/protocol';
 import { emptyMetricSeries, type MetricKey, type ResourceMetricResult } from '../../shared/resource-metrics';
@@ -9,11 +10,11 @@ export function MetricChart({ title, series, keys, format, start, end, unavailab
   const maximum = Math.max(...points.map(p => p[1]), 0) * 1.1 || 1;
   const x = (t: number) => 72 + (t - start) / Math.max(1, end - start) * 332;
   const y = (v: number) => 135 - v / maximum * 110;
-  return <section className="drawer-metric"><h3>{title}</h3>{!points.length ? <p className="muted">{unavailable ?? 'No samples available yet.'}</p> : <><svg viewBox="0 0 430 170" role="img" aria-label={`${title} history`}>
+  return <section className="drawer-metric"><h3>{title}</h3>{!points.length ? <p className="muted">{unavailable ?? 'No samples available yet.'}</p> : <><Chart samples={[...new Set(points.map(p => p[0]))].sort((a, b) => a - b).map(time => ({ x: x(time), title: new Date(time).toLocaleString(), values: keys.map(key => { const point = series[key].find(p => p[0] === time); return `${key === 'networkRx' ? 'Receive' : key === 'networkTx' ? 'Transmit' : title}: ${point ? format(point[1]) : 'Unavailable'}`; }) }))} viewBox="0 0 430 170"  role="img" aria-label={`${title} history`}>
     {[0, .5, 1].map(ratio => <g key={ratio}><line x1="72" x2="404" y1={y(maximum * ratio)} y2={y(maximum * ratio)} stroke="#414a53"/><text x="67" y={y(maximum * ratio) + 4} textAnchor="end">{format(maximum * ratio)}</text></g>)}
     {[0, .5, 1].map(ratio => <text key={ratio} x={72 + 332 * ratio} y="158" textAnchor={ratio === 0 ? 'start' : ratio === 1 ? 'end' : 'middle'}>{new Date(start + (end - start) * ratio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</text>)}
     {keys.map((key, index) => <g key={key} stroke={index ? '#bd85ef' : '#51b9e7'} fill={index ? '#bd85ef' : '#51b9e7'}>{series[key].filter(p => p[0] >= start && p[0] <= end).map((p, i, values) => <g key={p[0]}>{i > 0 && p[0] - values[i - 1][0] <= Math.max(45000, (end - start) / 100) && <line x1={x(values[i - 1][0])} y1={y(values[i - 1][1])} x2={x(p[0])} y2={y(p[1])}/>}<circle cx={x(p[0])} cy={y(p[1])} r="2"><title>{new Date(p[0]).toLocaleString()}: {format(p[1])}</title></circle></g>)}</g>)}
-  </svg><div className="metric-legend">{keys.map((key, i) => <span key={key} style={{ color: i ? '#bd85ef' : '#51b9e7' }}>{key === 'networkRx' ? 'Receive' : key === 'networkTx' ? 'Transmit' : 'Usage'}: {series[key].length ? format(series[key].at(-1)![1]) : 'Unavailable'}</span>)}</div></>}</section>;
+  </Chart><div className="metric-legend">{keys.map((key, i) => <span key={key} style={{ color: i ? '#bd85ef' : '#51b9e7' }}>{key === 'networkRx' ? 'Receive' : key === 'networkTx' ? 'Transmit' : 'Usage'}: {series[key].length ? format(series[key].at(-1)![1]) : 'Unavailable'}</span>)}</div></>}</section>;
 }
 export function ResourceMetrics({ resource, target }: { resource: Resource; target: Target }) {
   const [container, setContainer] = useState(''), [minutes, setMinutes] = useState(15), [refresh, setRefresh] = useState(0);

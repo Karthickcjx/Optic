@@ -123,6 +123,10 @@ try {
   await page.getByRole('button', { name: 'Metrics', exact: true }).click();
   await expect(page.getByRole('img', { name: 'CPU (cores) history', exact: true })).toBeVisible({ timeout: 20000 });
   await expect(page.locator('.resource-metrics')).toContainText('0.250');
+  await page.getByRole('img', { name: 'CPU (cores) history', exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('CPU (cores): 0.250');
+  await page.mouse.move(0, 0);
+
   await expect(page.locator('.resource-metrics')).toContainText('Requires Prometheus');
   await page.getByLabel('Metrics container', { exact: true }).selectOption('server');
   await expect(page.getByRole('img', { name: 'Memory working set history', exact: true })).toBeVisible();
