@@ -115,16 +115,23 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
   const allocations = [...totals.values()].sort((a, b) => b.total - a.total);
   if (allocations.some(a => !Number.isFinite(a.total)) || !Number.isFinite(idleCost)) throw new AppError('COST_METRICS', 'Prometheus returned values too large to estimate costs.');
   const coverage = buckets.length * step * 1000 / (query.end - query.start);
+  const expectedIntervals = Math.max(0, Math.floor((end - start) / step) + 1);
+  const missingIntervals = Math.max(0, expectedIntervals - buckets.length);
+  const observedMilliseconds = buckets.length * step * 1000;
+  const edgeExcludedMilliseconds = Math.max(0, query.end - query.start - expectedIntervals * step * 1000);
+  const historyCoverage = { expectedIntervals, observedIntervals: buckets.length, missingIntervals, observedMilliseconds, edgeExcludedMilliseconds, observedStart: buckets[0]?.start, observedEnd: buckets.at(-1)?.end };
+  const duration = (ms: number) => ms >= 3600000 ? `${(ms / 3600000).toFixed(1)} hours` : `${Math.round(ms / 60000)} minutes`;
   return { ...query, generatedAt: Date.now(), source: 'Prometheus estimate', currency: 'USD', estimated: true, allocations, buckets, total: allocations.length ? allocations.reduce((s, a) => s + a.total, 0) : null,
-    idleCost, efficiency: { cpu: requestedCpu > 0 ? usedCpu / requestedCpu : undefined, memory: requestedMemory > 0 ? usedMemory / requestedMemory : undefined }, nodePrices: prices, coverage,
+    idleCost, efficiency: { cpu: requestedCpu > 0 ? usedCpu / requestedCpu : undefined, memory: requestedMemory > 0 ? usedMemory / requestedMemory : undefined }, nodePrices: prices, coverage, historyCoverage,
     notes: [
       'Historical usage estimate at current prices, not a cloud invoice. CPU/RAM allocations use the higher of average requests and usage. Storage, network, discounts and separate GPU charges are excluded; public VM prices may include GPUs.',
-      'Node metadata and public prices describe the current configuration, not historical instance changes. CPU/RAM price splitting uses the configured resource-rate weights.'
+      'Node metadata and public prices describe the current configuration, not historical instance changes. CPU/RAM price splitting uses the configured resource-rate weights.',
+      ...(edgeExcludedMilliseconds > 0 ? [`The range excludes ${Math.ceil(edgeExcludedMilliseconds / 1000)} seconds at its edges to use complete sampling intervals. This is rounding, not missing history.`] : [])
     ], warnings: [
       ...(prices.some(p => p.source.includes('fallback')) ? ['Some nodes use configurable fallback rates because public pricing is unavailable or unsupported. These rates are assumptions, not discovered cloud prices.'] : []),
       ...(prices.some(p => p.spot && !p.source.includes('spot retail')) ? ['Spot nodes use an on-demand reference or configured rates; actual spot charges may differ.'] : []),
       ...(incomplete ? ['Telemetry is incomplete. Affected allocations and idle amounts are omitted; totals are partial.'] : []),
-      ...(coverage < 0.999 ? ['Historical coverage is partial. Only complete observed intervals are included; missing data and partial edge intervals are not charged.'] : []),
+      ...(missingIntervals > 0 ? [`Historical coverage is partial: ${duration(observedMilliseconds)} of usable observations in the selected ${duration(query.end - query.start)}. ${missingIntervals} sampling intervals have no usable cost data. Choose a shorter range or check Prometheus retention and scrape health; unobserved time is not charged.`] : []),
       ...(ownerFallback ? ['Some historical owners are unavailable or ambiguous. Those workloads are grouped by Pod.'] : []),
       ...(!allocations.length ? ['No complete CPU/memory cost observations were available for this range. Check kube-state-metrics, cAdvisor and Prometheus retention.'] : [])
     ] };

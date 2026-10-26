@@ -6,7 +6,7 @@ import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'optic-cost-smoke-'));
 const sockets = new Set(), requests = [];
-let fail = false, memoryMissing = false, estimateMissing = false;
+let fail = false, memoryMissing = false, estimateMissing = false, estimateSince = 0;
 const nodes = ['control', 'worker'].map((name, i) => ({ apiVersion: 'v1', kind: 'Node', metadata: { name, uid: name, labels: i ? {} : { 'node-role.kubernetes.io/control-plane': '' } }, status: { capacity: { cpu: '4', memory: '8Gi' }, allocatable: { cpu: '4', memory: '8Gi', pods: '110' }, addresses: [{ address: `10.0.0.${i + 1}` }], conditions: [{ type: 'Ready', status: 'True' }] } }));
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost'); res.setHeader('Content-Type', 'application/json');
@@ -17,7 +17,7 @@ const server = createServer((req, res) => {
     const value = capacity ? (memory ? 8 * 1024 ** 3 : 4) : request ? (memory ? 2 * 1024 ** 3 : 1) : (memory ? 1024 ** 3 : 0.5);
     const labels = capacity ? { node: 'worker' } : { namespace: 'production', pod: 'api', node: 'worker' };
     const values = Array.from({ length: Math.floor((end - start) / step) + 1 }, (_, i) => [start + i * step, String(value)]);
-    res.end(JSON.stringify({ status: 'success', data: { resultType: 'matrix', result: estimateMissing ? [] : [{ metric: labels, values }] } })); return;
+    res.end(JSON.stringify({ status: 'success', data: { resultType: 'matrix', result: estimateMissing ? [] : [{ metric: labels, values: values.filter(([time]) => time >= estimateSince) }] } })); return;
   }
   if (url.pathname.endsWith('/allocation')) {
     requests.push(Object.fromEntries(url.searchParams));
@@ -120,6 +120,20 @@ try {
   await expect.poll(async () => { try { return JSON.parse(await readFile(exportPath, 'utf8')).estimated; } catch { return false; } }).toBe(true);
   const estimate = JSON.parse(await readFile(exportPath, 'utf8'));
   assert.ok(estimate.idleCost > 0); assert.equal(estimate.efficiency.cpu, 0.5); assert.ok(estimate.nodePrices.length > 0); assert.ok(estimate.buckets.length > 0);
+  await expect(dashboard.locator('.cost-warning').filter({ hasText: 'Historical coverage is partial' })).toHaveCount(0);
+  estimateSince = Date.now() / 1000 - 3600;
+  await page.getByRole('button', { name: 'Apply range', exact: true }).click();
+  await expect(dashboard.locator('.cost-history-coverage')).toContainText('Available estimate intervals');
+  await expect(page.getByRole('button', { name: 'Use available history', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Use available history', exact: true }).click();
+  await expect(page.getByLabel('Cost time range')).toHaveValue('custom');
+  await expect(dashboard).toContainText('Prometheus estimate');
+  const selectedStart = await page.getByLabel('Cost start').inputValue(), selectedEnd = await page.getByLabel('Cost end').inputValue();
+  assert.ok(new Date(selectedEnd) - new Date(selectedStart) <= 65 * 60000);
+  await capture('07-available-cost-history');
+  await page.getByLabel('Cost time range').selectOption('1');
+  await page.getByRole('button', { name: 'Apply range', exact: true }).click();
+  await expect(dashboard).toContainText('Prometheus estimate');
   estimateMissing = true;
   await page.getByRole('button', { name: 'Apply range', exact: true }).click();
   await expect(dashboard.getByRole('alert')).toContainText('OpenCost is not required');

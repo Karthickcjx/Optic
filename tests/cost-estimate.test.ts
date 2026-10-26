@@ -93,3 +93,17 @@ it('queries selected Prometheus, discovers nodes and caches identical requests',
   const calls = vi.mocked(kubeJson).mock.calls.length; await service.read(input); expect(vi.mocked(kubeJson).mock.calls).toHaveLength(calls);
   expect(vi.mocked(kubeJson).mock.calls[1][1]).toContain('/namespaces/metrics/services/prom%3A9090/proxy/');
 });
+
+it('does not warn about missing history when only the request edges are rounded', () => {
+  const report = allocateEstimate({ ...query, start: -30000, end: query.end + 30000 }, hour, hour * 2, hour, observations(), [price]);
+  expect(report.coverage).toBeLessThan(0.999);
+  expect(report.historyCoverage).toMatchObject({ expectedIntervals: 2, observedIntervals: 2, missingIntervals: 0, edgeExcludedMilliseconds: 60000 });
+  expect(report.warnings.join()).not.toContain('Historical coverage');
+  expect(report.notes?.join()).toContain('rounding');
+});
+it('reports actual observed bounds and missing intervals without filling gaps', () => {
+  const rows = observations(); rows.cpuUsage[0].points.delete(hour);
+  const report = allocateEstimate(query, hour, hour * 2, hour, rows, [price]);
+  expect(report.historyCoverage).toMatchObject({ expectedIntervals: 2, observedIntervals: 1, missingIntervals: 1, observedMilliseconds: 3600000, observedStart: 3600000, observedEnd: 7200000 });
+  expect(report.warnings.join()).toContain('1 sampling intervals');
+});

@@ -10,9 +10,13 @@ export interface NodePrice {
   hourly: number; cpuHourly: number; memoryHourly: number; source: string; fetchedAt?: number;
 }
 export interface CostEfficiency { cpu?: number; memory?: number }
+export interface CostHistoryCoverage {
+  expectedIntervals: number; observedIntervals: number; missingIntervals: number;
+  observedMilliseconds: number; edgeExcludedMilliseconds: number; observedStart?: number; observedEnd?: number;
+}
 export interface CostReport {
   source: string; currency: string; estimated: boolean; start: number; end: number; group: CostGroup;
-  generatedAt: number; total: number | null; allocations: CostAllocation[]; buckets: CostBucket[]; warnings: string[]; notes?: string[]; nodePrices?: NodePrice[]; efficiency?: CostEfficiency; idleCost?: number; coverage?: number;
+  generatedAt: number; total: number | null; allocations: CostAllocation[]; buckets: CostBucket[]; warnings: string[]; notes?: string[]; nodePrices?: NodePrice[]; efficiency?: CostEfficiency; idleCost?: number; coverage?: number; historyCoverage?: CostHistoryCoverage;
 }
 export function costCsv(report: CostReport, search = '') {
   const cell = (value: string | number | undefined) => {
