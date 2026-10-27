@@ -120,3 +120,29 @@
 
 .chart-tooltip { position: fixed; z-index: 10000; pointer-events: none; width: max-content; max-width: min(310px, calc(100vw - 16px)); padding: 10px 12px; border: 1px solid #596875; border-radius: 5px; background: #20262d; color: #edf3f8; box-shadow: 0 4px 16px #0008; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .chart-tooltip strong { display: block; margin-bottom: 4px; }
+
+.security-page { padding: 24px 28px; max-width: 1800px; margin: 0 auto; }
+.security-page header, .security-dialog header, .security-page footer, .security-dialog footer { display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.security-page h1 { display: flex; align-items: center; gap: 10px; }
+.security-setup { margin: 16px 0; padding: 12px; border: 1px solid #414a53; }
+.security-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.security-toolbar label:not(.check-row) { display: flex; flex-direction: column; gap: 6px; }
+.security-toolbar input:not([type=checkbox]) { min-width: 220px; flex: 1; }
+.security-counts { display: flex; flex-wrap: wrap; gap: 14px; margin: 20px 0; }
+.security-counts > div { padding: 12px 20px; border: 1px solid #414a53; border-radius: 4px; min-width: 125px; }
+.security-counts strong { display: block; font-size: 26px; margin-top: 8px; }
+.security-severity { font-weight: 600; font-size: 12px; }
+.severity-critical { color: #ff747e; }
+.severity-high { color: #ffa366; }
+.severity-medium { color: #e5c76a; }
+.severity-low { color: #70bfec; }
+.severity-unknown { color: #b4bdc7; }
+.security-table { overflow-x: auto; margin: 16px 0; }
+.security-table table { width: 100%; border-collapse: collapse; }
+.security-table th, .security-table td { text-align: left; padding: 12px; border-bottom: 1px solid #414a53; vertical-align: top; }
+.security-table td { max-width: 400px; overflow-wrap: anywhere; }
+.security-table small { display: block; color: #9da8b3; margin-top: 5px; }
+.security-table button { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.security-dialog { width: min(1250px, 95vw); max-height: 90vh; overflow: auto; background: #282e34; border: 1px solid #596875; border-radius: 5px; padding: 24px; }
+.security-dialog h2 { overflow-wrap: anywhere; min-width: 0; }
+.security-description { white-space: pre-wrap; }

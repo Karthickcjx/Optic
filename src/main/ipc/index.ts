@@ -1,3 +1,4 @@
+import { SecurityReports } from '../security';
 import { exportCostReport } from '../cost-export';
 import { CostReports } from '../cost-report';
 import { OverviewMetrics } from '../overview-metrics';
@@ -21,6 +22,7 @@ import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  const securityReports = new SecurityReports(clusters);
   const costReports = new CostReports(clusters);
   const overviewMetrics = new OverviewMetrics(clusters);
   const resourceMetrics = new ResourceMetrics(clusters, resources);
@@ -33,6 +35,8 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'security:reports': input => securityReports.read(input),
+    'security:detail': input => securityReports.detail(input),
     'cost:export': (input, owner) => exportCostReport(owner, input.text, input.format),
     'logs:export': (input, owner) => exportLogs(owner, input.text),
     'nodes:drain-preview': input => actions.drainPreview(input),

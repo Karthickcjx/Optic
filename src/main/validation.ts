@@ -21,6 +21,8 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'security:reports': z.object({ clusterId: text, namespace: namespace.optional() }).strict(),
+  'security:detail': z.object({ clusterId: text, namespace, type: z.enum(['vulnerabilityreports', 'configauditreports']), name, uid: text }).strict(),
   'nodes:drain-preview': target.extend({ kind: z.literal('nodes') }),
   'nodes:drain': nodeAction.extend({ options: z.object({ ignoreDaemonSets: z.boolean(), deleteEmptyDirData: z.boolean(), force: z.boolean(), timeoutSeconds: z.number().int().min(30).max(1800) }).strict() }),
   'deployments:revisions': target.extend({ kind: z.literal('deployments'), namespace: name }),
