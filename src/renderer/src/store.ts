@@ -23,7 +23,7 @@ const welcome: WorkspaceTab = { id: 'welcome', view: 'welcome', clusterId: '', n
 export function pageTitle(page: WorkspaceTab, clusters: Cluster[]) {
   if (page.view === 'welcome') return 'Welcome';
   if (page.view === 'settings') return 'Preferences';
-  const title = page.view === 'security' ? 'Security' : page.view === 'cost' ? 'Cost' : page.view === 'applications' ? 'Applications' : page.view === 'helm-charts' ? 'Helm Charts' : page.view === 'helm-releases' ? 'Helm Releases' : page.view === 'cluster-settings' ? 'Cluster Settings' : page.view === 'overview' ? 'Cluster Overview' : page.view === 'custom' ? page.custom?.kind ?? 'Custom Resources' : catalog[page.view].label;
+  const title = page.view === 'security-images' ? 'Security Images' : page.view === 'security-resources' ? 'Security Resources' : page.view === 'security-roles' ? 'Security Roles' : page.view === 'security' ? 'Security Overview' : page.view === 'cost' ? 'Cost' : page.view === 'applications' ? 'Applications' : page.view === 'helm-charts' ? 'Helm Charts' : page.view === 'helm-releases' ? 'Helm Releases' : page.view === 'cluster-settings' ? 'Cluster Settings' : page.view === 'overview' ? 'Cluster Overview' : page.view === 'custom' ? page.custom?.kind ?? 'Custom Resources' : catalog[page.view].label;
   return `${title} — ${clusters.find(c => c.id === page.clusterId)?.name ?? 'Cluster'}`;
 }
 function readPreferences(): State['preferences'] { try { const saved = JSON.parse(localStorage.getItem('cluster-preferences') ?? '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; } catch { return {}; } }

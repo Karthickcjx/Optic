@@ -26,6 +26,7 @@ export type StreamEvent =
   | { id: string; type: 'error'; error: Fault }
   | { id: string; type: 'end'; exitCode?: number; reason?: 'closed' };
 export interface Requests {
+  'security:copy-install': { input: undefined; output: void };
   'security:reports': { input: import('./security').SecurityScope; output: import('./security').SecuritySnapshot };
   'security:detail': { input: import('./security').SecurityTarget; output: import('./security').SecurityDetail };
   'nodes:drain-preview': { input: Target; output: DrainPreview };
@@ -87,7 +88,7 @@ export interface Requests {
   'stream:ack': { input: { id: string; seq: number }; output: void };
   'stream:close': { input: { id: string }; output: void };
 }
-export const channels: (keyof Requests)[] = ['security:reports', 'security:detail', 'cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
+export const channels: (keyof Requests)[] = ['security:copy-install', 'security:reports', 'security:detail', 'cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 export interface DesktopAPI {
   request<K extends keyof Requests>(channel: K, input: Requests[K]['input']): Promise<Result<Requests[K]['output']>>;
   subscribe(listener: (event: StreamEvent) => void): () => void;

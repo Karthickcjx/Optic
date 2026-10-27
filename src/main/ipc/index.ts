@@ -1,3 +1,4 @@
+import { trivyInstallCommands } from '../../shared/security';
 import { SecurityReports } from '../security';
 import { exportCostReport } from '../cost-export';
 import { CostReports } from '../cost-report';
@@ -9,7 +10,7 @@ import { HelmService } from '../helm';
 import { Providers } from '../providers';
 import { Monitoring } from '../monitoring';
 import { NodeShell } from '../node-shell';
-import { app, dialog, shell, ipcMain, type WebContents } from 'electron';
+import { app, clipboard, dialog, shell, ipcMain, type WebContents } from 'electron';
 import { join } from 'node:path';
 import { channels, type Requests, type Result } from '../../shared/protocol';
 import { ClusterManager } from '../clusters';
@@ -35,6 +36,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'security:copy-install': () => clipboard.writeText(trivyInstallCommands),
     'security:reports': input => securityReports.read(input),
     'security:detail': input => securityReports.detail(input),
     'cost:export': (input, owner) => exportCostReport(owner, input.text, input.format),

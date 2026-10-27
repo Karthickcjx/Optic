@@ -1,3 +1,4 @@
+import { securityTypes, clusterSecurityType } from '../shared/security';
 import { publicUrl } from './helm';
 import { validContainerShell } from '../shared/logs';
 import { resourceEditSchema } from '../shared/resource-editors';
@@ -21,8 +22,9 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'security:copy-install': z.undefined(),
   'security:reports': z.object({ clusterId: text, namespace: namespace.optional() }).strict(),
-  'security:detail': z.object({ clusterId: text, namespace, type: z.enum(['vulnerabilityreports', 'configauditreports']), name, uid: text }).strict(),
+  'security:detail': z.object({ clusterId: text, namespace: namespace.optional(), type: z.enum(securityTypes), name, uid: text }).strict().refine(v => clusterSecurityType(v.type) ? !v.namespace : !!v.namespace, 'Match the report namespace scope.'),
   'nodes:drain-preview': target.extend({ kind: z.literal('nodes') }),
   'nodes:drain': nodeAction.extend({ options: z.object({ ignoreDaemonSets: z.boolean(), deleteEmptyDirData: z.boolean(), force: z.boolean(), timeoutSeconds: z.number().int().min(30).max(1800) }).strict() }),
   'deployments:revisions': target.extend({ kind: z.literal('deployments'), namespace: name }),
@@ -57,7 +59,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'nodes:cordon': z.object({ clusterId: text, name, unschedulable: z.boolean() }),
   'clusters:list': z.undefined(), 'clusters:health': z.object({ clusterId: text }),
   'metrics:resource': target.extend({ uid: text, container: name.optional(), minutes: z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]) }),
-  'resources:get': target, 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
+  'resources:get': scope.extend({ name: z.string().min(1).max(253).regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/) }), 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
   'resources:replace': target.extend({ yaml: z.string().min(1).max(2_000_000) }),
   'resources:delete': target, 'resources:restart': target,
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),

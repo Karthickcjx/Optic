@@ -39,7 +39,7 @@ it('reads namespace-scoped reports through paginated GETs and keeps independent 
     return { items: [raw()], metadata: { continue: path.includes('continue=') ? '' : 'next+page' } };
   });
   const result = await service.read({ clusterId: 'cluster', namespace: 'team' });
-  expect(result.sources[0].reports).toHaveLength(2); expect(result.sources[1].state).toBe('forbidden');
+  expect(result.sources[0].reports).toHaveLength(1); expect(result.sources[1].state).toBe('forbidden');
   expect(JSON.stringify(result)).not.toContain('private server response');
   expect(vi.mocked(kubeJson).mock.calls.some(call => call[1].includes('/namespaces/team/vulnerabilityreports?limit=50&continue=next%2Bpage'))).toBe(true);
   expect(vi.mocked(kubeJson).mock.calls.every(call => !call[2]?.method || call[2].method === 'GET')).toBe(true);
@@ -68,4 +68,20 @@ it('validates the read-only IPC boundary and prevents arbitrary API paths', () =
   expect(schemas['security:detail'].safeParse({ clusterId: 'c', type: 'secrets', namespace: 'team', name: 'x', uid: 'x' }).success).toBe(false);
   expect(schemas['security:reports'].safeParse({ clusterId: 'c', namespace: '../secrets' }).success).toBe(false);
   expect(schemas['security:reports'].safeParse({ clusterId: 'c', method: 'DELETE' }).success).toBe(false);
+});
+
+it('reads ClusterRole reports without a namespace and validates their IPC scope', async () => {
+  vi.mocked(kubeJson).mockResolvedValue({ metadata: { ...metadata, namespace: undefined }, report: { checks: [] } });
+  const result = await service.detail({ clusterId: 'c', type: 'clusterrbacassessmentreports', name: metadata.name, uid: metadata.uid });
+  expect(result.namespace).toBe('');
+  expect(vi.mocked(kubeJson).mock.calls[0][1]).toBe('/apis/aquasecurity.github.io/v1alpha1/clusterrbacassessmentreports/pod-api-server');
+  expect(schemas['security:detail'].safeParse({ clusterId: 'c', type: 'clusterrbacassessmentreports', name: 'x', uid: 'u' }).success).toBe(true);
+  expect(schemas['security:detail'].safeParse({ clusterId: 'c', type: 'clusterrbacassessmentreports', namespace: 'team', name: 'x', uid: 'u' }).success).toBe(false);
+  expect(schemas['security:detail'].safeParse({ clusterId: 'c', type: 'rbacassessmentreports', name: 'x', uid: 'u' }).success).toBe(false);
+  expect(schemas['resources:get'].safeParse({ clusterId: 'c', kind: 'clusterroles', name: 'system:controller:test' }).success).toBe(true);
+});
+it('redacts secret matches, file paths and descriptions from exposed-secret details', () => {
+  const result = securityReport({ metadata, report: { secrets: [{ ruleID: 'aws-key', category: 'AWS', severity: 'CRITICAL', match: 'TOP_SECRET', target: 'PRIVATE_FILE', description: 'TOP_SECRET', messages: ['TOP_SECRET'] }] } }, 'exposedsecretreports', true);
+  expect(result.counts.CRITICAL).toBe(1); expect(result.findings[0].status).toBe('secret');
+  expect(JSON.stringify(result)).not.toContain('TOP_SECRET'); expect(JSON.stringify(result)).not.toContain('PRIVATE_FILE');
 });

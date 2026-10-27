@@ -146,3 +146,33 @@
 .security-dialog { width: min(1250px, 95vw); max-height: 90vh; overflow: auto; background: #282e34; border: 1px solid #596875; border-radius: 5px; padding: 24px; }
 .security-dialog h2 { overflow-wrap: anywhere; min-width: 0; }
 .security-description { white-space: pre-wrap; }
+
+.security-center { max-width: none; padding: 0 20px 24px; }
+.security-center > header { padding-top: 14px; }
+.security-center > header h1 { font-size: 20px; }
+.security-install-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 -20px; padding: 10px 16px; background: #f3b842; color: #242424; }
+.security-install-banner button { background: #464b50; color: #fff; white-space: nowrap; }
+.security-overview-charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 24px 0 30px; }
+.security-donut h3 { font-size: 14px; margin: 0 0 12px; }
+.security-donut > div { display: flex; gap: 14px; align-items: center; }
+.security-donut svg { width: min(46%, 170px); flex-shrink: 0; overflow: visible; }
+.security-donut svg text { fill: #d1d8de; font-size: 24px; }
+.security-donut ul { flex: 1; padding: 0; margin: 0; list-style: none; min-width: 0; }
+.security-donut li { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 8px 0; }
+.security-donut li i { width: 8px; height: 8px; flex-shrink: 0; }
+.security-donut li strong { margin-left: auto; }
+.security-table-heading { font-weight: 400; font-size: 15px; margin-top: 24px; }
+.security-center .security-table td:first-child { min-width: 180px; }
+.security-badges { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.security-badges > span { padding: 2px 5px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; }
+.security-coverage { font-size: 12px; }
+.security-install { max-width: 850px; }
+.security-install pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; padding: 16px; background: #1d2125; }
+.security-dialog label select { display: block; max-width: 100%; margin-top: 8px; }
+.security-navigation .tree-leaf { padding-left: 28px; }
+@media (max-width: 1250px) { .security-donut > div { flex-direction: column; align-items: stretch; } .security-donut svg { align-self: center; width: 150px; } }
+@media (max-width: 850px) { .security-overview-charts { grid-template-columns: 1fr; } .security-donut > div { flex-direction: row; } .security-install-banner { flex-wrap: wrap; } }
+
+.security-overview-charts.with-secret-chart { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1500px) { .security-overview-charts.with-secret-chart { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 850px) { .security-overview-charts.with-secret-chart { grid-template-columns: 1fr; } }
