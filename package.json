@@ -12,7 +12,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs && node tests/cost-dashboard-smoke.mjs && node tests/security-smoke.mjs",
+    "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs && node tests/cost-dashboard-smoke.mjs && node tests/security-smoke.mjs && node tests/import-deploy-smoke.mjs",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
   },
@@ -25,6 +25,7 @@
     "node-pty": "^1.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "tar": "^7.5.22",
     "undici": "^8.12.3",
     "yaml": "^2.8.2",
     "zod": "^4.3.6",

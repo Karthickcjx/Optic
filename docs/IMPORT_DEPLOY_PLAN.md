@@ -1,8 +1,20 @@
 # Import and Deploy implementation plan
 
-Status: proposed; implementation has not started.
+Status: initial implementation on `feat/import-deploy`; fixture validation completed, live cluster/registry acceptance outstanding.
 Baseline: `31e6743` on `feat/security-scanning`.
 Suggested implementation branch: `feat/import-deploy`.
+
+## Implementation status (2026-10-28)
+
+Implemented: multi-file and pasted YAML/JSON batches, Kubernetes Lists, explicit folder file selection, duplicate detection, discovery-based namespace scope, server dry-run, Namespace/CRD prerequisite sequencing, immutable expiring reviews, per-resource outcomes, stop between manifest resources, background notifications and restart reconciliation notices.
+
+Local chart directories and `.tgz` archives support install/upgrade, ordered values-file imports, final editor overrides and isolated dependency builds for public HTTPS dependencies. Chart rendering is labeled separately from server validation. Chart bytes and values are frozen for apply. Archive links, traversal, duplicate paths and excessive expansion are rejected.
+
+Kustomize supports local trees with in-tree bases and installed `kubectl`; remote bases, executable plugins, external generators/transformers and Helm inflation are blocked. HTTPS archives, explicit HTTPS repository chart/version downloads and OCI references support session-only credentials and custom CA certificates. Credentials are discarded after downloads; no plaintext credential persistence is added.
+
+Entry points: Applications, resource-create dialog, command search and Helm Charts. Operations continue when the dialog closes; Optic itself must remain open.
+
+Remaining enhancements: drag/drop, saved source identity for one-click local-chart upgrades, encrypted persistent credential profiles, richer live-resource diffs, and registry catalog browsing. Private/local dependency builds require vendoring before import. No automatic rollback or crash-safe resumption is claimed. Live disposable-cluster checks (new CRD + instance, Helm hooks, authenticated registries and custom CA servers) remain necessary before declaring production acceptance.
 
 ## Objective
 

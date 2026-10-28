@@ -1,4 +1,5 @@
 import { Chart } from './Chart';
+import { Settings, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { costComponents, costCsv, type CostAllocation, type CostGroup, type CostQuery, type CostReport } from '../../shared/cost';
 import { useStore } from './store';
@@ -34,11 +35,11 @@ export function CostDashboard() {
     void request('cost:export', { text: content, format }).then(result => { if (result.saved) useStore.getState().notify('Cost report exported.'); }).catch(e => useStore.getState().notify(e.message));
   };
   const buckets = report?.buckets ?? [], max = Math.max(0.01, ...buckets.map(b => Math.abs(b.total)));
-  return <section className="cost-dashboard"><header><div><h1>Cost dashboard</h1><p>{clusterName}</p></div><button onClick={() => navigate('cluster-settings')}>Cluster settings</button></header>
-    <div className="cost-controls"><label>Time range<select aria-label="Cost time range" value={range} onChange={e => setRange(e.target.value)}><option value="1">Last 1 hour</option><option value="6">Last 6 hours</option><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="custom">Custom dates</option></select></label>
+  return <section className="cost-dashboard"><header><div><h1>Cost dashboard</h1><p>{clusterName}</p></div><button className="cost-settings-button" onClick={() => navigate('cluster-settings')}><Settings size={16} aria-hidden="true"/>Cluster settings</button></header>
+    <div className="cost-controls cost-filter-controls"><label>Time range<select aria-label="Cost time range" value={range} onChange={e => setRange(e.target.value)}><option value="1">Last 1 hour</option><option value="6">Last 6 hours</option><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="custom">Custom dates</option></select></label>
       {range === 'custom' && <><label>Start (local time)<input aria-label="Cost start" type="datetime-local" value={start} onChange={e => setStart(e.target.value)}/></label><label>End (local time)<input aria-label="Cost end" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)}/></label></>}
-      <label>Group by<select aria-label="Cost grouping" value={group} onChange={e => setGroup(e.target.value as CostGroup)}><option value="namespace">Namespace</option><option value="node">Node</option><option value="controller">Workload (namespace / kind / controller)</option></select></label>
-      <label className="check-row"><input type="checkbox" checked={idle} onChange={e => setIdle(e.target.checked)}/>Include idle costs</label><button className="primary" onClick={apply}>Apply range</button><button disabled={busy} onClick={() => { const b = appliedRange === 'custom' ? query.end : Date.now(); setQuery({ ...query, end: b, start: appliedRange === 'custom' ? query.start : b - Number(appliedRange) * 3600000, forceRefresh: true }); }}>Refresh report</button>
+      <label>Group by<select aria-label="Cost grouping" title="Workloads are grouped by namespace, kind and controller" value={group} onChange={e => setGroup(e.target.value as CostGroup)}><option value="namespace">Namespace</option><option value="node">Node</option><option value="controller">Workload</option></select></label>
+      <label className="check-row"><input type="checkbox" checked={idle} onChange={e => setIdle(e.target.checked)}/>Include idle costs</label><div className="cost-filter-actions"><button className="primary" onClick={apply}>Apply range</button><button disabled={busy} onClick={() => { const b = appliedRange === 'custom' ? query.end : Date.now(); setQuery({ ...query, end: b, start: appliedRange === 'custom' ? query.start : b - Number(appliedRange) * 3600000, forceRefresh: true }); }}><RefreshCw size={15} aria-hidden="true" className={busy ? 'spin' : undefined}/>Refresh report</button></div>
     </div>
     {formError && <p className="inline-error" role="alert">{formError}</p>}
     {busy && <p role="status">Loading cost allocations...</p>}{error && <p className="inline-error" role="alert">{error}{report ? ' Displayed report may be stale. Export is disabled until a successful refresh.' : ''}</p>}

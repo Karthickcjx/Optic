@@ -207,6 +207,13 @@ try {
   await expect(dashboard).toContainText('No complete CPU/memory cost observations');
   await expect(dashboard.locator('.cost-summary').first()).toContainText('Unavailable');
   await expect(dashboard.getByRole('alert')).toHaveCount(0);
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 680));
+  await dashboard.evaluate(e => { e.scrollTop = 0; });
+  await expect(page.getByLabel('Cost start')).toBeInViewport();
+  await expect(page.getByLabel('Cost end')).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Apply range', exact: true })).toBeInViewport();
+  assert(await dashboard.evaluate(e => e.scrollWidth <= e.clientWidth + 1), 'Cost page must not overflow horizontally');
+  await capture('08-responsive-custom-dates');
   assert.deepEqual(errors, []);
   console.log('PASS: cost history, date ranges, grouping, idle costs, allocation detail, search, JSON download, stale report, unavailable data, invalid dates and Prometheus estimates with node rates, idle costs and efficiency.');
 

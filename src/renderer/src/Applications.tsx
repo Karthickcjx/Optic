@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Package, Upload } from 'lucide-react';
+import { openImportDeploy } from './ImportDeployDialog';
 import { groupApplications } from '../../shared/applications';
 import { resourceKind } from '../../shared/relationships';
 import { useResources } from './hooks';
@@ -21,7 +23,7 @@ export function Applications() {
   const sources = { Pods: pods, Deployments: deployments, StatefulSets: statefulsets, DaemonSets: daemonsets, Jobs: jobs, CronJobs: cronjobs, Services: services };
   const groups = groupApplications(Object.values(sources).flatMap(source => source.items)).filter(group => `${group.name} ${group.namespace}`.toLowerCase().includes(search.toLowerCase()));
   const loading = Object.values(sources).some(source => source.loading);
-  return <section className="applications-page"><header><h1>Applications</h1><button onClick={() => store.navigate('helm-releases')}>Helm releases</button></header>
+  return <section className="applications-page"><header><h1>Applications</h1><div className="applications-actions"><button className="applications-secondary" onClick={() => store.navigate('helm-releases')}><Package size={16} aria-hidden="true"/>Helm releases</button><button className="primary" onClick={openImportDeploy}><Upload size={16} aria-hidden="true"/>Import and deploy</button></div></header>
     <p className="muted">Live workloads and services grouped by part-of, instance, name, or app labels within each namespace. Unlabelled resources remain available in the resource browser.</p>
     <div className="table-tools"><select aria-label="Application namespace" value={namespace} onChange={event => store.setNamespace(event.target.value)}>{!manual.length && <option value="">All namespaces</option>}{[...new Set([...manual, ...namespaces.items.map(item => item.metadata.name!)])].map(name => <option key={name}>{name}</option>)}</select><input aria-label="Search applications" placeholder="Search applications" value={search} onChange={event => setSearch(event.target.value)}/><button onClick={() => { Object.values(sources).forEach(source => source.refresh()); namespaces.refresh(); }}>Refresh</button><span>{groups.length} applications</span></div>
     {namespaces.error && <p className="inline-error">Namespaces: {namespaces.error}</p>}

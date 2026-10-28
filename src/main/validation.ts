@@ -22,6 +22,16 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'deploy:stop': z.object({ id }),
+  'imports:dependencies': z.object({ id }),
+  'imports:pick': z.object({ kind: z.enum(['manifests', 'folder', 'kustomize', 'chart', 'archive', 'values', 'certificate']) }),
+  'imports:remote': z.object({ reference: z.string().min(1).max(2048).refine(v => /^(https|oci):\/\//.test(v)), version: z.string().max(128), username: z.string().max(256).refine(v => !v.startsWith('-')), password: z.string().max(8192), chart: z.string().max(253).optional(), caId: id.optional() }),
+  'imports:dispose': z.object({ id }),
+  'deploy:prepare': z.object({ clusterId: text, namespace, sourceId: id.optional(), files: z.array(z.string().max(1024)).max(2000), yaml: z.string().max(20 * 1024 * 1024).optional(), release: z.string().max(53), action: z.enum(['install', 'upgrade']), valuesIds: z.array(id).max(20), values: z.string().max(2 * 1024 * 1024) }),
+  'deploy:discard': z.object({ id }),
+  'deploy:start': z.object({ id }),
+  'deploy:status': z.undefined(),
+  'deploy:dismiss': z.object({ id }),
   'security:copy-install': z.undefined(),
   'security:reports': z.object({ clusterId: text, namespace: namespace.optional() }).strict(),
   'security:detail': z.object({ clusterId: text, namespace: namespace.optional(), type: z.enum(securityTypes), name, uid: text }).strict().refine(v => clusterSecurityType(v.type) ? !v.namespace : !!v.namespace, 'Match the report namespace scope.'),

@@ -1,4 +1,6 @@
 import { trivyInstallCommands } from '../../shared/security';
+import { Imports } from '../imports';
+import { Deployments } from '../deploy';
 import { SecurityReports } from '../security';
 import { exportCostReport } from '../cost-export';
 import { CostReports } from '../cost-report';
@@ -30,12 +32,28 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const actions = new ResourceActions(clusters, resources);
   const streams = new Streams(); const sessions = new SessionService(clusters, streams);
   const providers = new Providers(clusters), monitoring = new Monitoring(clusters), nodeShell = new NodeShell(clusters, streams, sessions);
-  const helm = new HelmService(clusters, join(app.getPath('userData'), 'helm-repositories.json'), id => monitoring.isBusy(id));
-  const operationBusy = (id: string) => monitoring.isBusy(id) || helm.isBusy(id) || actions.isBusy(id);
-  app.on('before-quit', () => { monitoring.dispose(); helm.dispose(); actions.dispose(); });
+  const imports = new Imports();
+  const helm: HelmService = new HelmService(clusters, join(app.getPath('userData'), 'helm-repositories.json'), id => monitoring.isBusy(id) || deployments.isBusy(id));
+  const deployments: Deployments = new Deployments(clusters, imports, id => monitoring.isBusy(id) || helm.isBusy(id) || actions.isBusy(id), join(app.getPath('userData'), 'import-operations.json'));
+  const operationBusy = (id: string) => monitoring.isBusy(id) || helm.isBusy(id) || actions.isBusy(id) || deployments.isBusy(id);
+  app.on('before-quit', () => { deployments.close(); imports.close(); monitoring.dispose(); helm.dispose(); actions.dispose(); });
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'deploy:stop': input => deployments.stop(input.id),
+    'imports:dependencies': (input, owner) => deployments.dependencies(input.id, owner.id),
+    'imports:pick': async (input, owner) => {
+      const directory = ['folder', 'kustomize', 'chart'].includes(input.kind);
+      const result = await dialog.showOpenDialog({ title: `Import ${input.kind}`, properties: directory ? ['openDirectory'] : ['openFile', ...(input.kind === 'archive' ? [] : ['multiSelections' as const])], filters: directory ? [] : [{ name: input.kind === 'archive' ? 'Helm chart' : 'YAML / JSON', extensions: input.kind === 'archive' ? ['tgz'] : input.kind === 'certificate' ? ['pem', 'crt', 'cer'] : ['yaml', 'yml', 'json'] }] });
+      return result.canceled ? undefined : imports.add(input.kind, result.filePaths, owner.id);
+    },
+    'imports:remote': (input, owner) => deployments.remote(input, owner.id),
+    'imports:dispose': (input, owner) => imports.dispose(input.id, owner.id),
+    'deploy:prepare': (input, owner) => deployments.prepare(input, owner.id),
+    'deploy:discard': (input, owner) => deployments.discard(input.id, owner.id),
+    'deploy:start': (input, owner) => deployments.start(input.id, owner.id),
+    'deploy:status': () => deployments.status(),
+    'deploy:dismiss': input => deployments.dismiss(input.id),
     'security:copy-install': () => clipboard.writeText(trivyInstallCommands),
     'security:reports': input => securityReports.read(input),
     'security:detail': input => securityReports.detail(input),
@@ -70,7 +88,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'cost:read': input => providers.cost(input.clusterId),
     'monitoring:version': input => monitoring.latestVersion(input.component),
     'monitoring:status': input => monitoring.status(input.clusterId),
-    'monitoring:apply': input => { if (helm.isBusy(input.clusterId)) throw new AppError('HELM_BUSY', 'Wait for the active Helm operation.'); return monitoring.apply(input.clusterId, input.changes); },
+    'monitoring:apply': input => { if (helm.isBusy(input.clusterId) || deployments.isBusy(input.clusterId)) throw new AppError('HELM_BUSY', 'Wait for the active Helm operation.'); return monitoring.apply(input.clusterId, input.changes); },
     'nodeshell:open': (input, owner) => nodeShell.open(owner, input),
     'clusters:remove': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before removing the context.'); const result = clusters.removeContext(input.clusterId); streams.closeCluster(input.clusterId); return result; },
     'forward:start': (input, owner) => forwards.start(owner, input),

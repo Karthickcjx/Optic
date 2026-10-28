@@ -1,6 +1,6 @@
 import { startHelmOperation, useHelmOperations } from './helm-operations';
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, RefreshCw, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, RefreshCw, Search, X, Settings, Upload } from 'lucide-react';
 import { request } from './api';
 import { useStore } from './store';
 import type { HelmChart, HelmDetails, HelmInstall, HelmPreview, HelmRelease, HelmRepository } from '../../shared/helm';
@@ -70,7 +70,7 @@ export function HelmPage({ mode }: { mode: 'charts' | 'releases' }) {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'optic-helm-charts.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <div className={`helm-page helm-${mode}`}><header><h1>Helm {mode === 'charts' ? 'Charts' : 'Releases'}</h1><span>{clusterName}</span><button onClick={() => setManage(v => !v)} disabled={busy}>Manage repositories</button></header>
+  return <div className={`helm-page helm-${mode}`}><header><div className="helm-heading"><h1>Helm {mode === 'charts' ? 'Charts' : 'Releases'}</h1><p>{clusterName}</p></div><div className="helm-header-actions"><button className="helm-secondary" onClick={() => setManage(v => !v)} disabled={busy} aria-expanded={manage}><Settings size={16} aria-hidden="true"/>Manage repositories</button>{mode === 'charts' && <button className="primary" onClick={() => window.dispatchEvent(new Event('optic-import-deploy'))}><Upload size={16} aria-hidden="true"/>Install local chart</button>}</div></header>
     <p className="muted">{mode === 'charts' ? 'Live repository catalog. Select a chart to choose a version, edit values and preview an installation.' : 'Releases in the selected cluster. Viewing and changing releases requires an approved Helm executable and cluster permissions.'}</p>
     <fieldset disabled={busy} className="helm-toolbar">{mode === 'charts' ? <select aria-label="Helm repository" value={repo} onChange={e => setRepo(e.target.value)}>{repos.map(r => <option key={r.name}>{r.name}</option>)}</select> : <input aria-label="Helm release namespace" placeholder="All namespaces" value={namespace} onChange={e => setNamespace(e.target.value)}/>}
       <Search size={15}/><input aria-label="Search Helm" placeholder="Search by name, chart or description" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}/><button onClick={() => void action(async () => { if (mode === 'charts') setCharts(await request('helm:charts', { repository: repo, refresh: true })); else await loadReleases(); })}><RefreshCw size={15}/>Refresh</button><span>{count} items</span>{mode === 'charts' && <button disabled={!filteredCharts.length} onClick={exportCharts}>Export CSV</button>}</fieldset>

@@ -216,3 +216,15 @@ Reads are limited to 1,000 reports per type and 5,000 findings per detail view, 
 The layout was informed by the supplied Lens screenshot and REA static inspection of the installed Security Center module. The full renderer exceeded REA's memory budget; the isolated 191,861-byte module parsed without syntax errors, with unresolved dynamic/dependency relationships. Focused evidence: `ev_748a45c62b21f9e9fa68016da51386f2fd27760a50a5b7c21e2bfce7d53a3abc`. Findings and provenance are retained locally under ignored `artifacts/lens-security-inspection/`; proprietary source is not included in Optic.
 
 References: [Trivy vulnerability reports](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/vulnerability-report/), [configuration audits](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/configaudit-report/), and [RBAC assessments](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/rbacassessment-report/). Unit and Electron smoke tests cover normalization, image grouping, secret redaction, RBAC scopes, navigation, charts, installation instructions, permission failures and missing-operator states using controlled Kubernetes API fixtures.
+## Import and deploy your own resources
+
+Open **Applications → Import and deploy**, use **Import files / chart** in the resource-create dialog, or choose **Install local chart** under Helm Charts. Command search also includes **Import and deploy**.
+
+- Import YAML/JSON files, select files from a folder, or paste multi-document manifests and Kubernetes Lists. Review the captured context, namespace, create/update intent and validation results before applying.
+- Import a Helm chart directory or `.tgz`; add values files in order and final YAML overrides. Later values win. Public HTTPS dependencies can be built in staging without modifying the original chart.
+- Use a local Kustomize directory with all bases inside the selected tree. `kubectl` must be installed. External generators, plugins, Helm inflation and remote bases are disabled.
+- Download a chart from an HTTPS archive URL, an HTTPS repository with chart name and pinned version, or an explicit OCI reference. Optional credentials are session-only; custom CA certificates are supported. Downloads do not follow HTTPS redirects or forward credentials to a different origin.
+
+Apply closes the dialog and reports background progress and per-resource results. Manifest batches stop on the first error and retain successful changes. They can also be stopped between resources. Helm waits up to five minutes for readiness; keep Optic open. After an interrupted process, inspect actual cluster/release state before retrying.
+
+Reviews expire after ten minutes. Changes to inputs or kubeconfig require another review. Manifests are limited to 200 input files, 500 resources and 20 MiB total. Charts are limited to 2,000 files / 100 MiB expanded and 20 MiB compressed. Secret payloads are redacted in previews, but arbitrary ConfigMaps and values can still contain sensitive configuration.
