@@ -86,7 +86,7 @@
 .drawer-metric>p{min-height:60px;line-height:1.6}
 .metric-legend{display:flex;gap:15px;font-size:11px}
 
-.applications-page { overflow: auto; height: 100%; padding: 24px; }
+.applications-page { flex: 1; width: 100%; min-width: 0; overflow: auto; height: 100%; padding: 24px; }
 .applications-page > header { display: flex; align-items: center; justify-content: space-between; }
 .application-card { margin-top: 20px; border: 1px solid var(--border, #373d42); padding: 16px; }
 .application-card h2 { font-size: 16px; }
@@ -121,7 +121,7 @@
 .chart-tooltip { position: fixed; z-index: 10000; pointer-events: none; width: max-content; max-width: min(310px, calc(100vw - 16px)); padding: 10px 12px; border: 1px solid #596875; border-radius: 5px; background: #20262d; color: #edf3f8; box-shadow: 0 4px 16px #0008; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .chart-tooltip strong { display: block; margin-bottom: 4px; }
 
-.security-page { padding: 24px 28px; max-width: 1800px; margin: 0 auto; }
+.security-page { flex: 1; width: 100%; min-width: 0; min-height: 0; overflow: auto; padding: 24px 28px; max-width: 1800px; margin: 0 auto; }
 .security-page header, .security-dialog header, .security-page footer, .security-dialog footer { display: flex; align-items: center; gap: 16px; justify-content: space-between; }
 .security-page h1 { display: flex; align-items: center; gap: 10px; }
 .security-setup { margin: 16px 0; padding: 12px; border: 1px solid #414a53; }
@@ -152,10 +152,10 @@
 .security-center > header h1 { font-size: 20px; }
 .security-install-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 -20px; padding: 10px 16px; background: #f3b842; color: #242424; }
 .security-install-banner button { background: #464b50; color: #fff; white-space: nowrap; }
-.security-overview-charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 24px 0 30px; }
+.security-overview-charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 16px 0; }
 .security-donut h3 { font-size: 14px; margin: 0 0 12px; }
 .security-donut > div { display: flex; gap: 14px; align-items: center; }
-.security-donut svg { width: min(46%, 170px); flex-shrink: 0; overflow: visible; }
+.security-donut svg { width: min(42%, 130px); flex-shrink: 0; overflow: visible; }
 .security-donut svg text { fill: #d1d8de; font-size: 24px; }
 .security-donut ul { flex: 1; padding: 0; margin: 0; list-style: none; min-width: 0; }
 .security-donut li { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 8px 0; }
@@ -169,10 +169,18 @@
 .security-install { max-width: 850px; }
 .security-install pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; padding: 16px; background: #1d2125; }
 .security-dialog label select { display: block; max-width: 100%; margin-top: 8px; }
-.security-navigation .tree-leaf { padding-left: 28px; }
-@media (max-width: 1250px) { .security-donut > div { flex-direction: column; align-items: stretch; } .security-donut svg { align-self: center; width: 150px; } }
+.security-navigation .tree-leaf { padding-left: 66px; }
+@media (max-width: 1250px) { .security-donut > div { flex-direction: column; align-items: stretch; } .security-donut svg { align-self: center; width: 100px; } }
 @media (max-width: 850px) { .security-overview-charts { grid-template-columns: 1fr; } .security-donut > div { flex-direction: row; } .security-install-banner { flex-wrap: wrap; } }
 
 .security-overview-charts.with-secret-chart { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 1500px) { .security-overview-charts.with-secret-chart { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1500px) { .security-overview-charts.with-secret-chart .security-donut > div { flex-direction: row; align-items: center; gap: 10px; } .security-overview-charts.with-secret-chart svg { width: 80px; align-self: center; } }
 @media (max-width: 850px) { .security-overview-charts.with-secret-chart { grid-template-columns: 1fr; } }
+.security-scan-notice { margin: 12px 0; padding: 12px 16px; border-left: 3px solid #e5ad54; background: #342f26; }
+.security-scan-notice p { margin: 6px 0; }
+.security-scan-notice p span { display: block; overflow-wrap: anywhere; }
+.security-scan-notice summary { cursor: pointer; }
+.security-dialog header { position: sticky; top: -24px; padding: 12px 0; background: #282e34; z-index: 1; }
+.security-dialog header button { flex-shrink: 0; }
+.security-dialog .security-table { max-height: 52vh; overflow: auto; }
+.security-dialog th { position: sticky; top: 0; background: #282e34; z-index: 1; }

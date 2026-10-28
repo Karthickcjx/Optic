@@ -34,6 +34,11 @@ const server = createServer((req, res) => {
   const report = reportTypes[type];
   if (!report) { res.writeHead(404); res.end('{}'); return; }
   if (url.pathname.endsWith('/' + report.metadata.name)) { res.end(JSON.stringify(report)); return; }
+  if (mode === 'long' && type === 'configauditreports') {
+   const offset = url.searchParams.get('continue') ? 50 : 0;
+   const items = Array.from({ length: offset ? 5 : 50 }, (_, index) => ({ ...report, metadata: { ...report.metadata, name: `audit-${offset + index}`, uid: `audit-${offset + index}` } }));
+   res.end(JSON.stringify({ items, metadata: offset ? {} : { continue: 'next' } })); return;
+  }
   res.end(JSON.stringify({ items: mode === 'empty' ? [] : [report], metadata: {} })); return;
  }
  if (url.pathname === '/apis/apps/v1/namespaces/default/replicasets/api') { res.end(JSON.stringify({ apiVersion: 'apps/v1', kind: 'ReplicaSet', metadata: { name: 'api', namespace: 'default', uid: replaced ? 'other-owner' : 'owner-uid' }, spec: { replicas: 1 }, status: {} })); return; }
@@ -104,6 +109,19 @@ try {
   await expect(modal).toContainText('Container runs as root');
   await page.keyboard.press('Escape');
   await expect(modal).toHaveCount(0);
+  // Wheel scrolling must reach resources and pagination inside the clipped workspace.
+  mode = 'long';
+  await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
+  await expect(dashboard.locator('tbody tr')).toHaveCount(50);
+  const bounds = await dashboard.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.wheel(0, 20000);
+  await expect.poll(() => dashboard.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await expect(dashboard.locator('tbody tr').last()).toBeInViewport();
+  await expect(dashboard.locator(':scope > footer')).toBeInViewport();
+  await dashboard.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(dashboard.locator('tbody tr')).toHaveCount(5);
+  await dashboard.evaluate(element => { element.scrollTop = 0; });
   mode = 'forbidden';
   await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
   await expect(dashboard).toContainText('Access denied');
@@ -131,11 +149,15 @@ try {
   assert.match(await app.evaluate(() => globalThis.securityCopied), /helm repo add aqua/);
   await page.screenshot({ path: 'artifacts/security/06-install-instructions.png' });
   await install.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Open install instructions', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(install).toHaveCount(0);
   await page.screenshot({ path: 'artifacts/security/07-missing-operator.png' });
   mode = 'empty';
   await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
   await expect(dashboard.locator('.security-install-banner')).toHaveCount(0);
   await expect(dashboard).toContainText('scans may still be pending');
+  await expect(dashboard).toContainText('No image vulnerability reports have been published.');
   mode = 'error';
   await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
   await expect(dashboard).toContainText('Request failed');

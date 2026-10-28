@@ -8,6 +8,10 @@ const raw = () => ({ metadata, report: { updateTimestamp: '2026-10-26T12:00:00Z'
 const clusters = { get: vi.fn(() => ({ config: {} })) };
 const service = new SecurityReports(clusters as any);
 beforeEach(() => { vi.clearAllMocks(); });
+it('preserves check evidence and remediation alongside its description', () => {
+  const report = securityReport({ metadata, report: { checks: [{ checkID: 'test', success: false, description: 'Risk', messages: ['Affected container'], remediation: 'Set runAsNonRoot' }] } }, 'configauditreports', true);
+  expect(report.findings[0].description).toBe('Risk\n\nAffected container\n\nRemediation: Set runAsNonRoot');
+});
 it('normalizes image, owner, timestamp and findings without exposing unrelated fields', () => {
   const report = securityReport({ ...raw(), sensitive: 'not-for-renderer' }, 'vulnerabilityreports', true);
   expect(report.image).toBe('registry.test/app@sha256:test');

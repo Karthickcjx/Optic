@@ -46,7 +46,7 @@ export function securityReport(raw: unknown, type: SecurityType, details = false
     findings: failures.map((entry): SecurityFinding => ({
       id: text(type === 'vulnerabilityreports' ? entry.vulnerabilityID : type === 'exposedsecretreports' ? entry.ruleID : entry.checkID) || 'Unknown ID',
       severity: severity(entry.severity), title: type === 'exposedsecretreports' ? text(entry.category) : text(entry.title),
-      description: type === 'exposedsecretreports' ? 'Potential credential detected in the image. Secret matches are hidden.' : text(entry.description, 8192) || (Array.isArray(entry.messages) ? entry.messages.slice(0, 20).map((m: unknown) => text(m)).join('\n') : ''),
+      description: type === 'exposedsecretreports' ? 'Potential credential detected in the image. Secret matches are hidden.' : [text(entry.description, 8192), Array.isArray(entry.messages) ? entry.messages.slice(0, 20).map((m: unknown) => text(m)).join('\n') : '', text(entry.remediation, 8192) ? `Remediation: ${text(entry.remediation, 8192)}` : ''].filter(Boolean).join('\n\n'),
       package: type === 'exposedsecretreports' ? '' : text(entry.resource), installed: text(entry.installedVersion), fixed: text(entry.fixedVersion),
       score: typeof entry.score === 'number' && Number.isFinite(entry.score) && entry.score >= 0 && entry.score <= 10 ? entry.score : undefined,
       status: type === 'vulnerabilityreports' ? 'vulnerability' : type === 'exposedsecretreports' ? 'secret' : entry.success === false ? 'failed' : 'unknown'

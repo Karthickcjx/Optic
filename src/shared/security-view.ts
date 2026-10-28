@@ -41,7 +41,9 @@ export function securityRows(page: SecurityPage, reports: SecurityReport[], pods
       continue;
     }
     const key = currentDigest ? `${imageKey(container.image).split('@')[0]}@${currentDigest}` : imageKey(container.image);
-    if (!imageRows.some(r => r.id === `image:${key}`)) imageRows.push(row([], `image:${key}`, currentDigest ? `${container.image} (${currentDigest})` : container.image, 'Image', pod.metadata.namespace ?? ''));
+    const existing = imageRows.find(r => r.id === `image:${key}`);
+    if (existing) existing.namespace = [...new Set([...existing.namespace.split(', ').filter(Boolean), pod.metadata.namespace ?? ''].filter(Boolean))].sort().join(', ');
+    else imageRows.push(row([], `image:${key}`, currentDigest && !container.image.includes(currentDigest) ? `${container.image} (${currentDigest})` : container.image, 'Image', pod.metadata.namespace ?? ''));
   }
   const configs = reports.filter(r => r.type === 'configauditreports').map(r => row([r], r.uid, r.owner?.name ?? r.name, r.owner?.kind ?? 'Resource', r.namespace));
   const assessments = reports.filter(r => r.type === 'rbacassessmentreports' || r.type === 'clusterrbacassessmentreports').map(r => row([r], r.uid, r.owner?.name ?? r.name, r.owner?.kind ?? (r.type === 'clusterrbacassessmentreports' ? 'ClusterRole' : 'Role'), r.namespace));
@@ -49,6 +51,29 @@ export function securityRows(page: SecurityPage, reports: SecurityReport[], pods
     assessments.push(row([], `role:${resource.metadata.uid}`, resource.metadata.name ?? 'Unknown', resource.kind ?? 'Role', resource.metadata.namespace ?? ''));
   }
   return page === 'images' ? imageRows : page === 'resources' ? configs : page === 'roles' ? assessments : [...imageRows, ...configs, ...assessments];
+}
+
+/** Current scanner pod failures and recent warnings, without exposing logs or credentials. */
+export function scannerIssues(pods: Resource[], events: Resource[], now = Date.now()) {
+  const scanner = (name: string) => /^(trivy-operator|scan-vulnerabilityreport-|node-collector-)/.test(name);
+  const issues = new Map<string, { namespace: string; name: string; message: string }>();
+  for (const pod of pods) {
+    const name = pod.metadata.name ?? '', namespace = pod.metadata.namespace ?? '';
+    if (!scanner(name)) continue;
+    const statuses = [...(pod.status?.containerStatuses ?? []), ...(pod.status?.initContainerStatuses ?? [])];
+    const failure = statuses.find(s => s.state?.waiting && s.state.waiting.reason !== 'ContainerCreating' || s.state?.terminated?.exitCode > 0);
+    const condition = pod.status?.conditions?.find((c: any) => c.type === 'PodScheduled' && c.status === 'False');
+    const message = failure?.state?.waiting?.reason ?? failure?.state?.terminated?.reason ?? condition?.message ?? (pod.status?.phase === 'Failed' ? pod.status?.message || 'Scanner pod failed' : '');
+    if (message) issues.set(`${namespace}/${name}`, { namespace, name, message: String(message).slice(0, 1200) });
+  }
+  const recent = [...events].sort((a, b) => Date.parse(b.lastTimestamp || b.eventTime || b.metadata.creationTimestamp || '') - Date.parse(a.lastTimestamp || a.eventTime || a.metadata.creationTimestamp || ''));
+  for (const event of recent) {
+    const name = event.involvedObject?.name ?? '', namespace = event.metadata.namespace ?? '';
+    const time = Date.parse(event.lastTimestamp || event.eventTime || event.metadata.creationTimestamp || '');
+    if (event.type !== 'Warning' || !scanner(name) || !Number.isFinite(time) || now - time > 3600000 || issues.has(`${namespace}/${name}`)) continue;
+    issues.set(`${namespace}/${name}`, { namespace, name, message: `${event.reason ?? 'Warning'}: ${event.message ?? ''}`.slice(0, 1200) });
+  }
+  return [...issues.values()].slice(0, 5);
 }
 export function securityStatistics(rows: SecurityRow[]) {
   return {
