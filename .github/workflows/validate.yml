@@ -16,12 +16,12 @@ jobs:
       - run: npm test
       - run: npm run test:smoke
       - run: npm run package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: desktop-test-screenshots
           path: artifacts/**/*.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: win-build

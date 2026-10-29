@@ -46,12 +46,12 @@ jobs:
           Copy-Item LICENSE release-assets/
           $lines = Get-ChildItem release-assets -File | Sort-Object Name | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }
           $lines | Set-Content release-assets/SHA256SUMS.txt -Encoding utf8
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: optic-windows-beta
           path: release-assets/*
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: release-failure-screenshots
