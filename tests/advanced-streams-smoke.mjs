@@ -82,9 +82,9 @@ try {
 
   // Pod sessions use controlled IPC responses; local terminal below uses real node-pty.
   await app.evaluate(({ ipcMain, BrowserWindow }) => {
-    const original = ipcMain._invokeHandlers.get('terminal:open'); globalThis.shellCalls = [];
+    const original = ipcMain._invokeHandlers.get('terminal:open'); globalThis.shellCalls = []; globalThis.localShellCalls = [];
     ipcMain.removeHandler('terminal:open'); ipcMain.handle('terminal:open', (event, input) => {
-      if (!input.pod) return original(event, input);
+      if (!input.pod) { globalThis.localShellCalls.push(input); return original(event, input); }
       globalThis.shellCalls.push(input);
       setTimeout(() => BrowserWindow.getAllWindows()[0].webContents.send('stream:event', { id: input.id, type: 'data', data: `shell ${input.shell} ready\r\n`, seq: 1 }), 50);
       return { ok: true };
@@ -109,6 +109,80 @@ try {
   await page.getByRole('button', { name: 'Disconnect terminal', exact: true }).click(); await expect(page.locator('.terminal-pane [role=status]')).toHaveText('Disconnected');
   await page.getByRole('button', { name: 'Reconnect terminal', exact: true }).click(); await expect(page.locator('.terminal-pane [role=status]')).toHaveText('Connected');
   await capture('05-terminal-reconnected');
+  const savedClipboard = await app.evaluate(async ({ clipboard }) => await clipboard.readText());
+  try {
+    await app.evaluate(async ({ clipboard }) => await clipboard.writeText('echo OPTIC_%OS%_CLIPBOARD'));
+    await page.locator('.terminal-host .xterm-helper-textarea').focus();
+    await page.keyboard.press('Control+Shift+V');
+    await expect(page.locator('.terminal-host')).toContainText('echo OPTIC_%OS%_CLIPBOARD');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.terminal-host')).toContainText('OPTIC_Windows_NT_CLIPBOARD');
+    await page.locator('.terminal-host').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Select all', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Copy', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    await expect.poll(async () => app.evaluate(async ({ clipboard }) => await clipboard.readText())).toContain('OPTIC_Windows_NT_CLIPBOARD');
+    await app.evaluate(async ({ clipboard }) => await clipboard.writeText('clipboard sentinel'));
+    await page.locator('.terminal-host .xterm-helper-textarea').focus();
+    await page.keyboard.press('Control+Shift+C');
+    await expect.poll(async () => app.evaluate(async ({ clipboard }) => await clipboard.readText())).toContain('OPTIC_Windows_NT_CLIPBOARD');
+    await page.keyboard.press('Escape');
+    await app.evaluate(async ({ clipboard }) => await clipboard.writeText('echo OPTIC_PASTE_BUTTON'));
+    await page.getByRole('button', { name: 'Paste', exact: true }).click();
+    await expect(page.locator('.terminal-host')).toContainText('echo OPTIC_PASTE_BUTTON');
+    await page.keyboard.press('Enter');
+    await capture('08-terminal-clipboard');
+    await app.evaluate(({ ipcMain }) => {
+      const original = ipcMain._invokeHandlers.get('terminal:write'); globalThis.interruptCount = 0;
+      ipcMain.removeHandler('terminal:write'); ipcMain.handle('terminal:write', (event, input) => { if (input.data === '\u0003') globalThis.interruptCount++; return original(event, input); });
+    });
+    await page.locator('.terminal-host .xterm-screen').click();
+    await page.keyboard.press('Control+c');
+    await expect.poll(() => app.evaluate(() => globalThis.interruptCount)).toBe(1);
+    await app.evaluate(async ({ clipboard }) => await clipboard.writeText('echo OPTIC_CTRL_V'));
+    await page.keyboard.press('Control+v');
+    await expect(page.locator('.terminal-host')).toContainText('echo OPTIC_CTRL_V'); await page.keyboard.press('Enter');
+  } finally { await app.evaluate(async ({ clipboard }, text) => await clipboard.writeText(text), savedClipboard); }
+  const profilesResult = await page.evaluate(() => window.desktop.request('terminal:profiles', undefined));
+  assert(profilesResult.ok); const profiles = profilesResult.data;
+  for (const profile of profiles.filter(p => p.available && p.id !== 'system')) {
+    await page.getByLabel('Local terminal profile', { exact: true }).selectOption(profile.id);
+    await page.getByTitle('Open selected terminal', { exact: true }).click();
+    const pane = page.locator('.terminal-pane:visible');
+    await expect(pane.locator('[role=status]')).toHaveText('Connected');
+    await pane.locator('.xterm-helper-textarea').focus();
+    const command = profile.id === 'gitbash' ? "printf 'OPTIC_%s_READY\\n' gitbash" : profile.id === 'cmd' ? 'echo OPTIC_%OS%_READY' : `Write-Output ('OPTIC_' + '${profile.id}_READY')`;
+    await page.keyboard.type(command); await page.keyboard.press('Enter');
+    await expect(pane.locator('.terminal-host')).toContainText(`OPTIC_${profile.id === 'cmd' ? 'Windows_NT' : profile.id}_READY`, { timeout: 20000 });
+    await page.locator('.dock-tab.active').getByTitle('Close session', { exact: true }).click();
+  }
+  await page.getByLabel('Local terminal profile', { exact: true }).selectOption(profiles.find(p => p.id === 'powershell' && p.available) ? 'powershell' : 'system');
+  const beforeSplit = await app.evaluate(() => globalThis.localShellCalls.length);
+  await page.getByRole('button', { name: 'Split terminal side by side', exact: true }).click();
+  await expect(page.locator('.terminal-pane:visible')).toHaveCount(2);
+  await expect(page.locator('.terminal-pane:visible [role=status]')).toHaveText(['Connected', 'Connected']);
+  assert.equal(await app.evaluate(() => globalThis.localShellCalls.length), beforeSplit + 1);
+  await page.getByRole('separator', { name: 'Resize split terminals' }).focus(); await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('separator', { name: 'Resize split terminals' })).toHaveAttribute('aria-valuenow', '55');
+  await capture('06-split-profiles');
+  const splitClipboard = await app.evaluate(async ({ clipboard }) => await clipboard.readText());
+  try {
+    await app.evaluate(async ({ clipboard }) => await clipboard.writeText('echo OPTIC_RIGHT_PANE_ONLY'));
+    const right = page.locator('.terminal-pane:visible').nth(1);
+    await right.locator('.xterm-helper-textarea').focus(); await page.keyboard.press('Control+Shift+V');
+    await expect(right).toContainText('echo OPTIC_RIGHT_PANE_ONLY');
+    await expect(page.locator('.terminal-pane:visible').first()).not.toContainText('OPTIC_RIGHT_PANE_ONLY');
+    await page.keyboard.press('Enter');
+  } finally { await app.evaluate(async ({ clipboard }, text) => await clipboard.writeText(text), splitClipboard); }
+  await page.getByRole('button', { name: 'Split terminal stacked', exact: true }).click();
+  await expect(page.locator('.dock-content')).toHaveClass(/split-rows/);
+  assert.equal(await app.evaluate(() => globalThis.localShellCalls.length), beforeSplit + 1, 'Changing split layout must preserve PTYs');
+  await capture('07-stacked-terminals');
+  await page.getByRole('button', { name: 'Unsplit', exact: true }).click();
+  await expect(page.locator('.terminal-pane:visible')).toHaveCount(1);
+  assert.equal(await app.evaluate(() => globalThis.localShellCalls.length), beforeSplit + 1, 'Unsplit must preserve PTYs');
+  await page.locator('.dock-tab.active').getByTitle('Close session', { exact: true }).click();
+  await expect(page.locator('.terminal-pane:visible [role=status]')).toHaveText('Connected');
   assert.deepEqual(errors, []);
   console.log('PASS: multi-pod source selection, labelled UTF-8 logs, automatic cursor resume/dedup, independent errors, filtered/native export, stop/close cleanup.');
   console.log('PASS: configurable pod shell, fresh session IDs, ended state, native local terminal disconnect/reconnect.');

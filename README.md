@@ -216,6 +216,14 @@ Reads are limited to 1,000 reports per type and 5,000 findings per detail view, 
 The layout was informed by the supplied Lens screenshot and REA static inspection of the installed Security Center module. The full renderer exceeded REA's memory budget; the isolated 191,861-byte module parsed without syntax errors, with unresolved dynamic/dependency relationships. Focused evidence: `ev_748a45c62b21f9e9fa68016da51386f2fd27760a50a5b7c21e2bfce7d53a3abc`. Findings and provenance are retained locally under ignored `artifacts/lens-security-inspection/`; proprietary source is not included in Optic.
 
 References: [Trivy vulnerability reports](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/vulnerability-report/), [configuration audits](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/configaudit-report/), and [RBAC assessments](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/rbacassessment-report/). Unit and Electron smoke tests cover normalization, image grouping, secret redaction, RBAC scopes, navigation, charts, installation instructions, permission failures and missing-operator states using controlled Kubernetes API fixtures.
+## Terminal profiles, splits and clipboard
+
+The bottom terminal bar lets you choose Command Prompt, Windows PowerShell, PowerShell 7 or Git Bash when installed. Refresh profiles after installing a shell. The selected profile applies to newly opened local terminals; existing sessions keep their shell. Pod/container shell selection remains separate.
+
+Use the dock's split buttons for side-by-side or stacked sessions. Drag the divider (or focus it and use arrow keys) to resize. **Unsplit** keeps both sessions as tabs; closing a pane ends only that session.
+
+Select terminal output and use **Copy**, **Ctrl+Shift+C**, or **Ctrl+C**. With no selection, Ctrl+C still interrupts the process. Paste with **Paste**, **Ctrl+V**, **Ctrl+Shift+V**, or **Shift+Insert**. Right-click offers Copy, Paste and Select all. macOS Command+C/V is supported. Paste goes through xterm's paste handling and targets only the active session; a reconnect discards an outstanding clipboard read. Text pastes are limited to 60,000 characters.
+
 ## Import and deploy your own resources
 
 Open **Applications → Import and deploy**, use **Import files / chart** in the resource-create dialog, or choose **Install local chart** under Helm Charts. Command search also includes **Import and deploy**.

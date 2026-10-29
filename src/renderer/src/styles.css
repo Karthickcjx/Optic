@@ -239,3 +239,22 @@
 .helm-toolbar > input[aria-label="Search Helm"] { flex: 1 1 240px; }
 .helm-toolbar > select, .helm-toolbar > input[aria-label="Helm release namespace"] { width: 180px; max-width: 100%; }
 .helm-toolbar > span, .helm-toolbar > button { white-space: nowrap; }
+.terminal-launcher-controls { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.terminal-launcher-controls select { height: 23px; padding: 1px 5px; max-width: 210px; font-size: 11px; }
+.dock-tabbar { display: flex; min-width: 0; flex-shrink: 0; background: #272a2e; border-bottom: 1px solid #363b42; }
+.dock-tabbar .dock-tabs { flex: 1; min-width: 0; border-bottom: 0; }
+.dock-layout-actions { display: flex; align-items: center; padding: 0 6px; border-left: 1px solid #414951; flex-shrink: 0; }
+.dock-panes { display: flex; min-width: 0; overflow: hidden; }
+.dock-pane-slot { flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.dock-pane-slot > .stream-pane { flex: 1; width: 100%; min-height: 0; }
+.dock-panes.split-rows { flex-direction: column; }
+.split-pane-heading { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: #252a30; color: #9aa7b6; font-size: 11px; border-top: 2px solid transparent; }
+.dock-pane-slot.focused > .split-pane-heading { border-top-color: #479ed6; color: #d0e6f5; }
+.terminal-split-divider { flex: 0 0 6px; background: #373e47; cursor: col-resize; touch-action: none; }
+.split-rows > .terminal-split-divider { cursor: row-resize; }
+.terminal-split-divider:hover, .terminal-split-divider:focus { background: #479ed6; }
+.dock-panes[class*="split-"] .terminal-toolbar { gap: 4px; padding: 4px 8px; max-height: 90px; overflow: auto; }
+.dock-panes[class*="split-"] .terminal-toolbar > .muted { display: none; }
+.terminal-context-menu { position: fixed; z-index: 110; width: 226px; padding: 4px; background: #292f36; border: 1px solid #525e69; border-radius: 4px; box-shadow: 0 6px 20px #0008; }
+.terminal-context-menu button { width: 100%; justify-content: space-between; text-align: left; min-height: 30px; }
+.terminal-context-menu small { color: #91a0af; margin-left: 10px; }

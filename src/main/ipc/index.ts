@@ -1,4 +1,5 @@
 import { trivyInstallCommands } from '../../shared/security';
+import { localShellProfiles } from '../terminal-profiles';
 import { Imports } from '../imports';
 import { Deployments } from '../deploy';
 import { SecurityReports } from '../security';
@@ -40,6 +41,9 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'terminal:clipboard-read': async () => { const text = await clipboard.readText(); if (text.length > 60000) throw new AppError('CLIPBOARD_TOO_LARGE', 'Terminal paste is limited to 60,000 characters. Paste a smaller selection.'); return text; },
+    'terminal:clipboard-write': input => clipboard.writeText(input.text),
+    'terminal:profiles': () => localShellProfiles(),
     'deploy:stop': input => deployments.stop(input.id),
     'imports:dependencies': (input, owner) => deployments.dependencies(input.id, owner.id),
     'imports:pick': async (input, owner) => {

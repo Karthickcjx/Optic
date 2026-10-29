@@ -1,4 +1,5 @@
 import { utilityProcess, type WebContents } from 'electron';
+import { resolveLocalShell } from './terminal-profiles';
 import { CoreV1Api, RequestContext, HttpMethod } from '@kubernetes/client-node';
 import { fetch } from 'undici';
 import { Readable, Writable } from 'node:stream';
@@ -60,10 +61,11 @@ export class SessionService {
   }
   async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand?: string[]) {
     const { id } = options;
-    let file = process.platform === 'win32' ? (process.env.COMSPEC ?? 'cmd.exe') : (process.env.SHELL ?? '/bin/sh');
-    let args: string[] = [];
+    const local = options.pod ? undefined : resolveLocalShell(options.localShell);
+    let file = local?.file ?? '';
+    let args: string[] = local?.args ?? [];
     const lease = options.clusterId ? this.clusters.cliConfig(options.clusterId) : undefined;
-    const environment = { ...process.env, TERM: 'xterm-256color', ...(lease ? { KUBECONFIG: lease.path } : {}) };
+    const environment = { ...process.env, TERM: 'xterm-256color', ...(lease ? { KUBECONFIG: lease.path } : {}), ...(options.localShell === 'gitbash' ? { CHERE_INVOKING: '1' } : {}) };
     // A local terminal inherits the user's environment. Pod selection is passed as argv, never interpolated shell code.
     if (options.pod) {
       const { cluster } = this.clusters.get(options.clusterId!);

@@ -17,7 +17,7 @@ export interface Cluster { id: string; name: string; server: string; source: str
 export interface Scope { clusterId: string; kind: ResourceKind; namespace?: string; custom?: CustomType }
 export interface Target extends Scope { name: string }
 export interface PodTarget { clusterId: string; namespace: string; pod: string; container?: string }
-export interface TerminalOptions { node?: string; clusterId?: string; pod?: string; namespace?: string; container?: string; shell?: string; cols: number; rows: number }
+export interface TerminalOptions { node?: string; clusterId?: string; pod?: string; namespace?: string; container?: string; shell?: string; localShell?: import('./terminal').LocalShellId; cols: number; rows: number }
 export interface Fault { code: string; message: string; retryable: boolean }
 export type Result<T> = { ok: true; data: T } | { ok: false; error: Fault };
 export type StreamEvent =
@@ -26,6 +26,9 @@ export type StreamEvent =
   | { id: string; type: 'error'; error: Fault }
   | { id: string; type: 'end'; exitCode?: number; reason?: 'closed' };
 export interface Requests {
+  'terminal:clipboard-read': { input: undefined; output: string };
+  'terminal:clipboard-write': { input: { text: string }; output: void };
+  'terminal:profiles': { input: undefined; output: import('./terminal').LocalShellProfile[] };
   'deploy:stop': { input: { id: string }; output: void };
   'imports:dependencies': { input: { id: string }; output: import('./deploy').ImportSource };
   'imports:pick': { input: { kind: import('./deploy').ImportKind }; output: import('./deploy').ImportSource | undefined };
@@ -100,6 +103,7 @@ export interface Requests {
 }
 export const channels: (keyof Requests)[] = ['security:copy-install', 'security:reports', 'security:detail', 'cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 channels.push('deploy:stop', 'imports:dependencies', 'imports:pick', 'imports:remote', 'imports:dispose', 'deploy:prepare', 'deploy:discard', 'deploy:start', 'deploy:status', 'deploy:dismiss');
+channels.push('terminal:profiles', 'terminal:clipboard-read', 'terminal:clipboard-write');
 export interface DesktopAPI {
   request<K extends keyof Requests>(channel: K, input: Requests[K]['input']): Promise<Result<Requests[K]['output']>>;
   subscribe(listener: (event: StreamEvent) => void): () => void;

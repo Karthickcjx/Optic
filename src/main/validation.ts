@@ -1,4 +1,5 @@
 import { securityTypes, clusterSecurityType } from '../shared/security';
+import { localShellIds } from '../shared/terminal';
 import { publicUrl } from './helm';
 import { validContainerShell } from '../shared/logs';
 import { resourceEditSchema } from '../shared/resource-editors';
@@ -22,6 +23,9 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'terminal:clipboard-read': z.undefined(),
+  'terminal:clipboard-write': z.object({ text: z.string().max(1_000_000) }),
+  'terminal:profiles': z.undefined(),
   'deploy:stop': z.object({ id }),
   'imports:dependencies': z.object({ id }),
   'imports:pick': z.object({ kind: z.enum(['manifests', 'folder', 'kustomize', 'chart', 'archive', 'values', 'certificate']) }),
@@ -75,7 +79,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),
   'cost:export': z.object({ text: z.string().max(16_000_000), format: z.enum(['csv', 'json']) }),
   'logs:export': z.object({ text: z.string().max(8_000_000) }),
-  'terminal:open': z.object({ id, clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), shell: z.string().refine(validContainerShell).optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace').refine(v => !v.shell || !!v.pod, 'Shell selection applies to pod terminals'),
+  'terminal:open': z.object({ id, localShell: z.enum(localShellIds).optional(), clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), shell: z.string().refine(validContainerShell).optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace').refine(v => !v.shell || !!v.pod, 'Shell selection applies to pod terminals').refine(v => !v.localShell || !v.pod, 'Local profiles cannot be used for pod terminals'),
   'terminal:write': z.object({ id, data: z.string().max(65536) }),
   'terminal:resize': z.object({ id, cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }),
   'stream:ack': z.object({ id, seq: z.number().int().nonnegative() }), 'stream:close': z.object({ id })
