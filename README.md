@@ -4,6 +4,18 @@
 
 See [release notes and installation requirements](RELEASE_NOTES.md), [security policy](SECURITY.md), and [downloads](https://github.com/Karthickcjx/Optic/releases). The initial installer targets Windows x64 and is unsigned. macOS/Linux binaries are not yet supported downloads.
 
+## Detailed cost accounting
+
+In **Cluster Settings → Cost**, select **OpenCost** or **Kubecost** and configure its Kubernetes Service endpoint. The cost dashboard shows CPU, memory, GPU, persistent storage and network charges when those fields are returned by the provider. Components include returned cost adjustments; network zone/region/internet amounts are informational subdivisions, never added twice. Allocation details include core-hours, GPU-hours, memory/storage GiB-hours and transferred GiB. CSV and JSON exports retain these quantities.
+
+The component chart and summary identify partial or unavailable fields. Historical effective rates use each interval's cost divided by its own allocation units, excluding idle allocations. These blended rates can change with workload mix or discounts; they are not presented as cloud catalog changes.
+
+Enable **Read retained provider price history from Prometheus** and set an explicit cluster-scoped Prometheus service under Metrics to inspect sampled CPU, memory, GPU and persistent-volume prices. Prometheus must scrape the OpenCost exporter. The price table preserves changes over the requested range, with resource/provider identity and timestamps. It does not overwrite allocation costs, fill missing historical prices, or infer changes between samples. Price metrics follow the exporter's USD convention; configure the exporter accordingly. JSON exports contain the sampled price history.
+
+**GCP:** configure the cost provider's GCP integration and permissions in your cluster, then select its service in Optic. Provider-priced allocations and `gce://` node-price samples are supported. Optic does not collect Google service-account keys or call the Google Cloud Billing catalog directly. GCP custom/fallback rates may still be emitted by the provider; verify its pricing configuration. See the [OpenCost GCP configuration](https://opencost.io/docs/configuration/gcp/) and [exported price metrics](https://opencost.io/docs/integrations/metrics/).
+
+The standalone **Estimate** mode remains a CPU/RAM estimate at current configured/public prices. Rich accounting requires the cost provider: PV pricing for storage, GPU allocation/prices, and classified egress for network. A returned zero is a provider value, not proof that collection is complete. Historical pricing does not recreate data from before retention or reconcile cloud invoices.
+
 An independent Kubernetes desktop workspace built with Electron, TypeScript, React, Zustand and Tailwind. Includes live resource tables, YAML details/editing, pod events, log streams and tabbed native terminals.
 
 ## Run

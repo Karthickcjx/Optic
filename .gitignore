@@ -7,6 +7,8 @@ coverage/
 artifacts/
 docs/
 resources/THIRD_PARTY_NOTICES.txt
+
+
 # Temporary files and credential-bearing kubeconfig backups
 *.tmp
 *.bak

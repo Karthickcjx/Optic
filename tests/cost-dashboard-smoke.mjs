@@ -15,6 +15,9 @@ const server = createServer((req, res) => {
   if (url.pathname.endsWith('/query_range')) {
     const expression = url.searchParams.get('query'), start = Number(url.searchParams.get('start')), end = Number(url.searchParams.get('end')), step = Number(url.searchParams.get('step'));
     metricRequests.push({ expression, start, end, step });
+    if (expression.includes('node_cpu_hourly_cost')) {
+      res.end(JSON.stringify({ status: 'success', data: { resultType: 'matrix', result: [{ metric: { __name__: 'node_cpu_hourly_cost', node: 'gke-worker', provider_id: 'gce://test/zone/worker' }, values: [[start, '0.02'], [end, '0.04']] }] } })); return;
+    }
     const availability = expression.includes('vector(1)'), capacity = expression.includes('kube_node_status_capacity'), memory = expression.includes('resource="memory"') || expression.includes('container_memory_working_set_bytes'), request = expression.includes('kube_pod_container_resource_requests');
     const value = availability ? 1 : capacity ? (memory ? 8 * 1024 ** 3 : 4) : request ? (memory ? 2 * 1024 ** 3 : 1) : (memory ? 1024 ** 3 : 0.5);
     const labels = availability ? {} : capacity ? { node: 'worker' } : { namespace: 'production', pod: 'api', node: 'worker' };
@@ -33,7 +36,7 @@ const server = createServer((req, res) => {
     const group = url.searchParams.get('aggregate'), data = [];
     for (let t = start; t < end; t += step) {
       const window = { start: new Date(t).toISOString(), end: new Date(Math.min(t + step, end)).toISOString() };
-      data.push({ [group === 'node' ? 'worker-1' : group.includes('controller') ? 'production/Deployment/api' : 'production']: { totalCost: 3, cpuCost: 1, ramCost: 1.5, pvCost: 0.5, window }, ...(url.searchParams.get('includeIdle') === 'true' ? { __idle__: { totalCost: 0.5, window } } : {}) });
+      data.push({ [group === 'node' ? 'worker-1' : group.includes('controller') ? 'production/Deployment/api' : 'production']: { totalCost: 3, cpuCost: 1, ramCost: 1, pvCost: 0.5, gpuCost: 0.2, networkCost: 0.3, cpuCoreHours: 2, gpuHours: 0.1, ramByteHours: 1024 ** 3, pvByteHours: 10 * 1024 ** 3, networkTransferBytes: 1024 ** 3, networkInternetCost: 0.3, window }, ...(url.searchParams.get('includeIdle') === 'true' ? { __idle__: { totalCost: 0.5, window } } : {}) });
     }
     res.end(JSON.stringify({ currency: 'USD', data: memoryMissing ? [] : data })); return;
   }
@@ -71,9 +74,27 @@ try {
   await expect(page.getByRole('tooltip')).toHaveCount(0);
 
   await dashboard.getByRole('button', { name: 'production', exact: true }).click();
-  await expect(dashboard.locator('.cost-detail tbody tr')).toHaveCount(1);
+  await expect(dashboard.locator('.cost-detail > table tbody tr')).toHaveCount(1);
+  await expect(dashboard.locator('.cost-accounting-detail')).toContainText('GiB transferred');
+  await expect(page.getByRole('region', { name: 'Detailed cost accounting' })).toContainText('Storage');
+  await page.getByLabel('Cost chart component').selectOption('gpu');
+  await expect(page.getByRole('img', { name: 'Component cost timeline' }).locator('rect')).toHaveCount(1);
+  await page.getByLabel('Historical rate resource').selectOption('gpu');
+  await expect(dashboard.locator('.cost-accounting')).toContainText('USD/GPU-hour');
   await capture('01-hourly-cost-and-detail');
   await dashboard.getByRole('button', { name: 'Close allocation' }).click();
+  await page.evaluate(async () => {
+    const discovery = await window.desktop.request('clusters:list');
+    const clusterId = discovery.data.clusters[0].id;
+    const saved = await window.desktop.request('settings:get', { clusterId });
+    const result = await window.desktop.request('settings:save', { clusterId, settings: { ...saved.data, costPriceHistory: true, prometheus: { namespace: 'metrics', service: 'prometheus', port: 9090 } } });
+    if (!result.ok) throw new Error(result.error.message);
+  });
+  await page.getByRole('button', { name: 'Refresh report' }).click();
+  await expect(page.getByLabel('Priced resource')).toContainText('GCP');
+  await expect(dashboard.locator('.cost-accounting')).toContainText('0.04');
+  await dashboard.locator('.cost-accounting').scrollIntoViewIfNeeded();
+  await capture('09-rich-accounting');
   // Every allocation-provider preset and a rolling refresh.
   for (const [range, count] of [['1', 1], ['6', 6], ['24', 24], ['168', 7], ['720', 30]]) {
     await page.getByLabel('Cost time range').selectOption(range);
@@ -129,7 +150,7 @@ try {
   await page.evaluate(async () => {
     const clusters = await window.desktop.request('clusters:list'); const clusterId = clusters.data.clusters[0].id;
     const saved = await window.desktop.request('settings:get', { clusterId });
-    const result = await window.desktop.request('settings:save', { clusterId, settings: { ...saved.data, costSource: 'estimate', estimatePublicPrices: false, prometheus: { namespace: 'metrics', service: 'prometheus', port: 9090 } } });
+    const result = await window.desktop.request('settings:save', { clusterId, settings: { ...saved.data, costSource: 'estimate', costPriceHistory: false, estimatePublicPrices: false, prometheus: { namespace: 'metrics', service: 'prometheus', port: 9090 } } });
     if (!result.ok) throw new Error(result.error.message);
   });
   await page.getByLabel('Cost time range').selectOption('24');

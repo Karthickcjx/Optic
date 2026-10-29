@@ -1,3 +1,4 @@
+import { readPriceHistory } from './cost-price-history';
 import { CostEstimates } from './cost-estimate';
 import type { ClusterManager } from './clusters';
 import { Providers, serviceProxy } from './providers';
@@ -5,17 +6,25 @@ import { kubeJson } from './kube-http';
 import { AppError } from './errors';
 import { costComponents, type CostAllocation, type CostBucket, type CostComponent, type CostQuery, type CostReport } from '../shared/cost';
 const fields: Record<CostComponent, string> = { cpu: 'cpuCost', memory: 'ramCost', gpu: 'gpuCost', storage: 'pvCost', network: 'networkCost', loadBalancer: 'loadBalancerCost', shared: 'sharedCost', external: 'externalCost' };
+const usageFields = { cpuCoreHours: ['cpuCoreHours', 1], memoryGiBHours: ['ramByteHours', 1024 ** 3], gpuHours: ['gpuHours', 1], storageGiBHours: ['pvByteHours', 1024 ** 3], networkGiB: ['networkTransferBytes', 1024 ** 3] } as const;
+const networkFields = { zone: 'networkCrossZoneCost', region: 'networkCrossRegionCost', internet: 'networkInternetCost' } as const;
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+function sumOptional<T extends Record<string, number | undefined>>(a: T | undefined, b: T | undefined): T | undefined {
+  if (!a || !b) return;
+  return Object.fromEntries(Object.keys(a).filter(key => b[key] !== undefined).map(key => [key, a[key]! + b[key]!])) as T;
+}
 function sumAllocations(rows: CostAllocation[]) {
   const totals = new Map<string, CostAllocation>();
   for (const row of rows) {
     const old = totals.get(row.name);
-    if (!old) { totals.set(row.name, { ...row, components: { ...row.components } }); continue; }
+    if (!old) { totals.set(row.name, { ...row, components: { ...row.components }, ...(row.usage ? { usage: { ...row.usage } } : {}), ...(row.network ? { network: { ...row.network } } : {}) }); continue; }
     old.total += row.total;
     for (const key of costComponents) {
       if (old.components[key] !== undefined && row.components[key] !== undefined) old.components[key]! += row.components[key]!;
       else delete old.components[key];
     }
+    if (old.usage) { const usage = sumOptional(old.usage, row.usage); if (usage) old.usage = usage; else delete old.usage; }
+    if (old.network) { const network = sumOptional(old.network, row.network); if (network) old.network = network; else delete old.network; }
   }
   return [...totals.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
@@ -32,9 +41,14 @@ export function parseCostReport(response: any, query: CostQuery): Pick<CostRepor
       const row = raw as any;
       if (!row || !finite(row.totalCost)) { invalid++; continue; }
       const components: CostAllocation['components'] = {};
-      for (const key of costComponents) if (finite(row[fields[key]])) components[key] = row[fields[key]];
+      for (const key of costComponents) {
+        const adjustment = row[`${fields[key]}Adjustment`];
+        if (finite(row[fields[key]]) && (adjustment === undefined || finite(adjustment))) components[key] = row[fields[key]] + (adjustment ?? 0);
+      }
+      const usage = Object.fromEntries(Object.entries(usageFields).filter(([, [field]]) => finite(row[field]) && row[field] >= 0).map(([key, [field, divisor]]) => [key, row[field] / divisor]));
+      const network = Object.fromEntries(Object.entries(networkFields).filter(([, field]) => finite(row[field])).map(([key, field]) => [key, row[field]]));
       if (name.length > 1024) throw new AppError('COST_RESPONSE', 'The allocation service returned an invalid allocation name.');
-      rows.push({ name, total: row.totalCost, components });
+      rows.push({ name, total: row.totalCost, components, ...(Object.keys(usage).length ? { usage } : {}), ...(Object.keys(network).length ? { network } : {}) });
       const a = Date.parse(row.window?.start), b = Date.parse(row.window?.end);
       if (Number.isFinite(a) && Number.isFinite(b) && (a >= b || a < query.start || b > query.end)) throw new AppError('COST_RESPONSE', 'The allocation service returned intervals outside the requested range.');
       if (!Number.isFinite(a) || !Number.isFinite(b)) ambiguous = true;
@@ -48,7 +62,7 @@ export function parseCostReport(response: any, query: CostQuery): Pick<CostRepor
   const overlap = buckets.some((b, i) => i > 0 && b.start < buckets[i - 1].end);
   if (overlap) throw new AppError('COST_RESPONSE', 'The allocation service returned overlapping intervals. Totals cannot be safely combined.');
   const allocations = sumAllocations(all);
-  if (allocations.some(a => !finite(a.total) || Object.values(a.components).some(v => !finite(v))) || buckets.some(b => !finite(b.total))) throw new AppError('COST_RESPONSE', 'The allocation totals are invalid.');
+  if (allocations.some(a => !finite(a.total) || [...Object.values(a.components), ...Object.values(a.usage ?? {}), ...Object.values(a.network ?? {})].some(v => !finite(v))) || buckets.some(b => !finite(b.total))) throw new AppError('COST_RESPONSE', 'The allocation totals are invalid.');
   const total = allocations.length ? allocations.reduce((sum, row) => sum + row.total, 0) : null;
   if (total !== null && !Number.isFinite(total)) throw new AppError('COST_RESPONSE', 'The allocation totals are invalid.');
   return { allocations, total, buckets, currency: typeof response.currency === 'string' && /^[A-Z]{3}$/.test(response.currency) ? response.currency : 'provider units', warnings: [
@@ -63,6 +77,17 @@ export class CostReports {
   private estimates: CostEstimates;
   constructor(private clusters: ClusterManager) { this.estimates = new CostEstimates(clusters); }
   async read(query: CostQuery): Promise<CostReport> {
+    const loaded = await this.load(query);
+    const report = { ...loaded, warnings: [...loaded.warnings] };
+    if (this.clusters.settings(query.clusterId).costPriceHistory && this.clusters.settings(query.clusterId).costSource !== 'off') {
+      try {
+        report.priceHistory = await readPriceHistory(this.clusters, query);
+        if (!report.priceHistory.length) report.warnings.push('No retained provider price metrics were found. Scrape OpenCost into the configured Prometheus to record price changes, including GCP rates.');
+      } catch { report.warnings.push('Provider price history could not be read. Allocation totals remain available; check the configured Prometheus service, access and retained OpenCost price metrics.'); }
+    }
+    return report;
+  }
+  private async load(query: CostQuery): Promise<CostReport> {
     const settings = this.clusters.settings(query.clusterId);
     const base: CostReport = { source: settings.costSource, currency: 'provider units', estimated: false, start: query.start, end: query.end, group: query.group, generatedAt: Date.now(), total: null, allocations: [], buckets: [], warnings: [] };
     if (settings.costSource === 'off') return { ...base, warnings: ['Cost monitoring is disabled. Enable a provider in Cluster Settings > Cost.'] };
@@ -77,7 +102,11 @@ export class CostReports {
       for (const path of paths) {
         try {
           const response = await kubeJson(config, `${serviceProxy(endpoint)}${path}?${params}`);
-          return { ...base, ...parseCostReport(response, query), source: `${endpoint.namespace}/${endpoint.service}` };
+          return { ...base, ...parseCostReport(response, query), source: `${endpoint.namespace}/${endpoint.service}`, notes: [
+            'Historical allocations use the prices retained by the configured OpenCost/Kubecost provider, including its GCP pricing configuration. Optic does not reprice those intervals using current VM prices.',
+            'Component costs include returned adjustments. Network route costs are a breakdown of network cost, not additional charges. Effective rates divide interval costs by reported allocation units; changes can reflect pricing, discounts or a different resource mix.',
+            'Storage, network and GPU costs require provider telemetry and pricing. A reported zero is the provider result, not proof that collection is complete. Missing fields remain unavailable. Cloud invoice reconciliation and past data before provider retention are not inferred.'
+          ] };
         } catch (e) { if (e instanceof AppError) throw e; const status = (e as any)?.statusCode; if (status === 401 || status === 403) denied = true; if (status !== 404) break; }
       }
     }

@@ -282,3 +282,13 @@
 .kubeconfig-source-dialog > footer { display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid #3a424c; background: #22272d; }
 .kubeconfig-source-dialog > footer button { min-height: 32px; min-width: 80px; padding: 6px 16px; border: 1px solid #48525e; background: #2c333b; }
 @media (max-width: 600px) { .kubeconfig-source-options { grid-template-columns: 1fr; } }
+
+.cost-accounting { margin:24px 0; padding:20px; border:1px solid #394149; border-radius:6px; min-width:0; }
+.cost-accounting h2 { margin:0 0 16px; }
+.cost-accounting h3 { margin:24px 0 8px; }
+.cost-accounting label { display:flex; flex-direction:column; gap:8px; max-width:260px; }
+.cost-accounting-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+.cost-accounting-cards article { display:flex; flex-direction:column; gap:8px; background:#272d33; padding:16px; border-radius:4px; }
+.cost-accounting-cards strong { font-size:24px; font-variant-numeric:tabular-nums; }
+.cost-accounting-cards small { color:#9baab8; }
+.cost-accounting .cost-table { overflow-x:auto; }

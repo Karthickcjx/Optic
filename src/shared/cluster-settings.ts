@@ -3,13 +3,13 @@ export interface ServiceEndpoint { namespace: string; service: string; port: num
 export interface ClusterSettings {
   displayName: string; color: string; proxyUrl: string; terminalCwd: string; containerShell: string; defaultNamespace: string; accessibleNamespaces: string[];
   metricsSource: 'automatic' | 'prometheus' | 'metrics-server' | 'none'; hiddenMetrics: string[]; prometheus: ServiceEndpoint;
-  costSource: 'automatic' | 'kubecost' | 'opencost' | 'estimate' | 'off'; costEndpoint: ServiceEndpoint; estimatedNodeHourlyCost: number; estimatePublicPrices: boolean; estimatedCpuHourlyCost: number; estimatedMemoryHourlyCost: number;
+  costSource: 'automatic' | 'kubecost' | 'opencost' | 'estimate' | 'off'; costEndpoint: ServiceEndpoint; costPriceHistory: boolean; estimatedNodeHourlyCost: number; estimatePublicPrices: boolean; estimatedCpuHourlyCost: number; estimatedMemoryHourlyCost: number;
   nodeShellImage: string; nodeShellPullSecret: string;
 }
 export const defaultClusterSettings: ClusterSettings = {
   displayName: '', color: '#4b91bd', proxyUrl: '', terminalCwd: '', containerShell: '/bin/sh', defaultNamespace: 'default', accessibleNamespaces: [],
   metricsSource: 'automatic', hiddenMetrics: [], prometheus: { namespace: 'monitoring', service: '', port: 9090 },
-  costSource: 'automatic', costEndpoint: { namespace: 'opencost', service: '', port: 9003 }, estimatedNodeHourlyCost: 0, estimatePublicPrices: true, estimatedCpuHourlyCost: 0.03, estimatedMemoryHourlyCost: 0.004,
+  costSource: 'automatic', costPriceHistory: false, costEndpoint: { namespace: 'opencost', service: '', port: 9003 }, estimatedNodeHourlyCost: 0, estimatePublicPrices: true, estimatedCpuHourlyCost: 0.03, estimatedMemoryHourlyCost: 0.004,
   nodeShellImage: 'alpine:3.21', nodeShellPullSecret: ''
 };
 export type MonitoringComponent = 'prometheus' | 'kube-state-metrics' | 'prometheus-node-exporter';
