@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem in Optic
+body:
+  - type: markdown
+    attributes:
+      value: Never include kubeconfigs, credentials, or unredacted logs. Use SECURITY.md for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Optic version and operating system
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Kubernetes version and sanitized diagnostics
