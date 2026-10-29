@@ -15,6 +15,25 @@ const observations = () => {
   return { cpuRequests: [point(pod, 1)], memoryRequests: [point(pod, 2 * GiB)], cpuUsage: [point(pod, 0.5)], memoryUsage: [point(pod, GiB)], cpuCapacity: [point(node, 4)], memoryCapacity: [point(node, 8 * GiB)] };
 };
 beforeEach(() => vi.resetAllMocks());
+it('filters stopped containers consistently before averaging requests and usage', () => {
+  const queries = estimateQueries(60, false);
+  for (const key of ['cpuRequests', 'memoryRequests', 'cpuUsage', 'memoryUsage'] as const) {
+    expect(queries[key]).toContain('(kube_pod_container_status_running) == 1');
+    expect(queries[key]).not.toContain('== bool');
+  }
+});
+it('identifies missing telemetry without charging it as idle or dropping healthy allocations', () => {
+  const rows = observations();
+  rows.cpuRequests.push(point({ namespace: 'other', pod: 'broken', node: 'worker' }, 1));
+  rows.memoryRequests.push(point({ namespace: 'other', pod: 'broken', node: 'worker' }, GiB));
+  const report = allocateEstimate(query, hour, hour * 2, hour, rows, [price]);
+  expect(report.total).toBeCloseTo(0.24);
+  expect(report.idleCost).toBe(0);
+  expect(report.allocations.map(row => row.name)).toEqual(['team']);
+  expect(report.warnings.join()).toContain('CPU usage (2 affected samples)');
+  expect(report.warnings.join()).toContain('memory usage (2 affected samples)');
+  expect(report.warnings.join()).not.toContain('CPU requests (');
+});
 it('integrates observed requests/usage and idle capacity while preserving the node price', () => {
   const report = allocateEstimate(query, hour, hour * 2, hour, observations(), [price]);
   expect(report.buckets).toHaveLength(2); expect(report.total).toBeCloseTo(0.96);
@@ -107,6 +126,20 @@ it('reports actual observed bounds and missing intervals without filling gaps', 
   const report = allocateEstimate(query, hour, hour * 2, hour, rows, [price]);
   expect(report.historyCoverage).toMatchObject({ expectedIntervals: 2, observedIntervals: 1, missingIntervals: 1, observedMilliseconds: 3600000, observedStart: 3600000, observedEnd: 7200000 });
   expect(report.warnings.join()).toContain('1 intervals are empty');
+  expect(report.historyCoverage).toMatchObject({ leadingMissingIntervals: 1, internalMissingIntervals: 0, trailingMissingIntervals: 0 });
+  expect(report.warnings.join()).toContain('precede the first usable observation');
+});
+it('distinguishes scrape gaps and missing latest intervals from unavailable earlier history', () => {
+  const rows = observations();
+  for (const points of Object.values(rows)) for (const row of points) {
+    row.points.set(3 * hour, row.points.get(hour)!);
+    row.points.delete(2 * hour);
+  }
+  const result = allocateEstimate({ ...query, end: 4 * hour * 1000 }, hour, 4 * hour, hour, rows, [price]);
+  expect(result.historyCoverage).toMatchObject({ leadingMissingIntervals: 0, internalMissingIntervals: 1, trailingMissingIntervals: 1 });
+  expect(result.warnings.join()).toContain('1 gaps within recorded history and 1 missing latest intervals');
+  expect(result.warnings.join()).not.toContain('precede the first');
+  expect(result.total).toBeCloseTo(0.96);
 });
 
 it('anchors every preset to the most recent complete minute with bounded in-range buckets', () => {

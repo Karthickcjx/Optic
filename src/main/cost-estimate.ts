@@ -19,7 +19,9 @@ export function estimateWindow(query: Pick<CostQuery, 'start' | 'end'>) {
 }
 export function estimateQueries(step: number, workloads: boolean): Partial<Record<Metric, string>> {
   const podNodes = 'max by (namespace,pod,node) (kube_pod_info)';
-  const running = 'max by (namespace,pod,container) (kube_pod_container_status_running)';
+  // Comparison filters out stopped containers; multiplying by their zero-valued
+  // status would keep phantom allocations with no matching cAdvisor samples.
+  const running = '(max by (namespace,pod,container) (kube_pod_container_status_running) == 1)';
   // Integrate only observed minutes. Short-lived Pods/nodes must not be billed for a whole bucket.
   const average = (expression: string) => `avg_over_time((${expression})[${step}s:60s]) * clamp_max(count_over_time((${expression})[${step}s:60s]) / ${step / 60}, 1)`;
   const requests = (resource: string) => {
@@ -28,7 +30,7 @@ export function estimateQueries(step: number, workloads: boolean): Partial<Recor
     const values = `(max by (namespace,pod,container,node) (${selector}) or on(namespace,pod,container) ((0 * ${running}) * on(namespace,pod) group_left(node) ${podNodes})) and on() count(${selector})`;
     return average(`sum by (namespace,pod,node) ((${values}) * on(namespace,pod,container) group_left() ${running})`);
   };
-  const usage = (expression: string) => average(`sum by (namespace,pod) (max by (namespace,pod,container) (${expression})) * on(namespace,pod) group_left(node) ${podNodes}`);
+  const usage = (expression: string) => average(`sum by (namespace,pod) ((max by (namespace,pod,container) (${expression})) and on(namespace,pod,container) ${running}) * on(namespace,pod) group_left(node) ${podNodes}`);
   const available = 'vector(1)' + [
     'kube_pod_container_resource_requests{resource="cpu"}', 'kube_pod_container_resource_requests{resource="memory"}',
     'container_cpu_usage_seconds_total{container!="",container!="POD"}', 'container_memory_working_set_bytes{container!="",container!="POD"}',
@@ -86,6 +88,9 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
   const availability = index(observations.availability, []).get('[]');
   const totals = new Map<string, CostAllocation>(), buckets: CostBucket[] = [];
   let observedMilliseconds = 0, partialIntervals = 0;
+  const missing = new Map<string, number>();
+  const recordMissing = (reason: string) => missing.set(reason, (missing.get(reason) ?? 0) + 1);
+  const metricNames = ['CPU requests', 'memory requests', 'CPU usage', 'memory usage'];
   let usedCpu = 0, requestedCpu = 0, usedMemory = 0, requestedMemory = 0, idleCost = 0, incomplete = false, ownerFallback = false, rowCount = 0;
   for (let time = start; time <= end; time += step) {
     const fraction = observations.availability === undefined ? 1 : Math.min(1, availability?.get(time) ?? 0);
@@ -96,7 +101,11 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
       const values = fields.map(k => metrics[k].get(key)?.get(time));
       if (values.every(v => v === undefined)) continue;
       // Never substitute missing telemetry with a zero and then label the remainder idle.
-      if (!price || values.some(v => v === undefined) || cpuCap.get(JSON.stringify([node]))?.get(time) === undefined || memCap.get(JSON.stringify([node]))?.get(time) === undefined) { incomplete = true; partialNodes.add(node); continue; }
+      const absent = values.flatMap((v, i) => v === undefined ? [metricNames[i]] : []);
+      if (!price) absent.push('node pricing');
+      if (cpuCap.get(JSON.stringify([node]))?.get(time) === undefined) absent.push('node CPU capacity');
+      if (memCap.get(JSON.stringify([node]))?.get(time) === undefined) absent.push('node memory capacity');
+      if (absent.length) { absent.forEach(recordMissing); incomplete = true; partialNodes.add(node); continue; }
       const [cr, mr, cu, mu] = values as number[], hours = step / 3600;
       const cpu = Math.max(cr, cu), memory = Math.max(mr, mu);
       let name = query.group === 'node' ? node : namespace;
@@ -110,14 +119,18 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
         name = owner ? `${namespace}/${owner.owner_kind}/${owner.owner_name}` : `${namespace}/Pod/${pod}`;
         if (!owner) ownerFallback = true;
       }
-      add(rows, name, cpu * price.cpuHourly * hours, memory / GiB * price.memoryHourly * hours);
+      add(rows, name, cpu * price!.cpuHourly * hours, memory / GiB * price!.memoryHourly * hours);
       usedCpu += cu * hours; requestedCpu += cr * hours; usedMemory += mu * hours; requestedMemory += mr * hours;
       const old = charged.get(node) ?? { cpu: 0, memory: 0 }; old.cpu += cpu; old.memory += memory; charged.set(node, old);
     }
     for (const [key, points] of cpuCap) {
       const capacity = points.get(time); if (capacity === undefined) continue;
       const [node] = JSON.parse(key), memory = memCap.get(key)?.get(time), price = rates.get(node), allocation = charged.get(node);
-      if (!price || memory === undefined || !allocation || partialNodes.has(node)) { incomplete = true; continue; }
+      if (!price || memory === undefined || !allocation || partialNodes.has(node)) {
+        incomplete = true;
+        if (!partialNodes.has(node)) recordMissing(!price ? 'node pricing' : memory === undefined ? 'node memory capacity' : 'node workload observations for idle calculation');
+        continue;
+      }
       const cpuCost = Math.max(0, capacity - allocation.cpu) * price.cpuHourly * step / 3600;
       const memCost = Math.max(0, memory - allocation.memory) / GiB * price.memoryHourly * step / 3600;
       idleCost += cpuCost + memCost;
@@ -136,8 +149,11 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
   const coverage = observedMilliseconds / (query.end - query.start);
   const expectedIntervals = Math.max(0, Math.floor((end - start) / step) + 1);
   const missingIntervals = Math.max(0, expectedIntervals - buckets.length);
+  const leadingMissingIntervals = buckets.length ? Math.round((buckets[0].end / 1000 - start) / step) : expectedIntervals;
+  const trailingMissingIntervals = buckets.length ? Math.round((end - buckets.at(-1)!.end / 1000) / step) : 0;
+  const internalMissingIntervals = Math.max(0, missingIntervals - leadingMissingIntervals - trailingMissingIntervals);
   const edgeExcludedMilliseconds = Math.max(0, query.end - query.start - expectedIntervals * step * 1000);
-  const historyCoverage = { expectedIntervals, observedIntervals: buckets.length, missingIntervals, partialIntervals, observedMilliseconds, edgeExcludedMilliseconds, observedStart: buckets[0]?.start, observedEnd: buckets.at(-1)?.end };
+  const historyCoverage = { expectedIntervals, observedIntervals: buckets.length, missingIntervals, leadingMissingIntervals, internalMissingIntervals, trailingMissingIntervals, partialIntervals, observedMilliseconds, edgeExcludedMilliseconds, observedStart: buckets[0]?.start, observedEnd: buckets.at(-1)?.end };
   const duration = (ms: number) => ms >= 3600000 ? `${(ms / 3600000).toFixed(1)} hours` : `${Math.round(ms / 60000)} minutes`;
   return { ...query, generatedAt: Date.now(), source: 'Prometheus estimate', currency: 'USD', estimated: true, allocations, buckets, total: allocations.length ? allocations.reduce((s, a) => s + a.total, 0) : null,
     idleCost: allocations.length ? idleCost : undefined, efficiency: { cpu: requestedCpu > 0 ? usedCpu / requestedCpu : undefined, memory: requestedMemory > 0 ? usedMemory / requestedMemory : undefined }, nodePrices: prices, coverage, historyCoverage,
@@ -148,8 +164,8 @@ export function allocateEstimate(query: CostQuery, start: number, end: number, s
     ], warnings: [
       ...(prices.some(p => p.source.includes('fallback')) ? ['Some nodes use configurable fallback rates because public pricing is unavailable or unsupported. These rates are assumptions, not discovered cloud prices.'] : []),
       ...(prices.some(p => p.spot && !p.source.includes('spot retail')) ? ['Spot nodes use an on-demand reference or configured rates; actual spot charges may differ.'] : []),
-      ...(incomplete ? ['Telemetry is incomplete. Affected allocations and idle amounts are omitted; totals are partial.'] : []),
-      ...(missingIntervals > 0 || partialIntervals > 0 ? [`Historical coverage is partial: ${duration(observedMilliseconds)} of usable observations in the selected ${duration(query.end - query.start)}. ${missingIntervals} intervals are empty and ${partialIntervals} intervals contain only partial telemetry. Choose a shorter range or check Prometheus retention and scrape health; unobserved time is not charged.`] : []),
+      ...(incomplete ? [`Cost totals are partial. Missing observations: ${[...missing].map(([name, count]) => `${name} (${count} affected samples)`).join(', ')}. Affected allocations and idle amounts are omitted. Check kube-state-metrics for requests/capacity and the kubelet cAdvisor scrape for usage; try a recent range after scrapes recover.`] : []),
+      ...(missingIntervals > 0 || partialIntervals > 0 ? [`Historical coverage is partial: ${duration(observedMilliseconds)} of usable observations in the selected ${duration(query.end - query.start)}. ${missingIntervals} intervals are empty and ${partialIntervals} intervals contain only partial telemetry. ${leadingMissingIntervals && buckets.length ? `${duration(leadingMissingIntervals * step * 1000)} precede the first usable observation; monitoring may have started recently or older data may have expired. ` : ''}${internalMissingIntervals || trailingMissingIntervals ? `${internalMissingIntervals} gaps within recorded history and ${trailingMissingIntervals} missing latest intervals. Check scrape health. ` : ''}Use available history for a narrower report. Unobserved time is not charged.`] : []),
       ...(ownerFallback ? ['Some historical owners are unavailable or ambiguous. Those workloads are grouped by Pod.'] : []),
       ...(!allocations.length ? ['No complete CPU/memory cost observations were available for this range. Check kube-state-metrics, cAdvisor and Prometheus retention.'] : [])
     ] };

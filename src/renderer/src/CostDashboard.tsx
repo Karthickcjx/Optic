@@ -20,6 +20,16 @@ export function CostDashboard() {
     return () => { active = false; };
   }, [clusterId, query]);
   useEffect(() => { setReport(undefined); setSearch(''); setPage(0); }, [clusterId]);
+  // Keep relative ranges moving as telemetry arrives. Custom reports remain fixed.
+  useEffect(() => {
+    if (appliedRange === 'custom') return;
+    const timer = window.setInterval(() => {
+      if (busy || document.visibilityState === 'hidden') return;
+      const end = Date.now();
+      setQuery(previous => ({ ...previous, start: end - Number(appliedRange) * 3600000, end, forceRefresh: true }));
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, [appliedRange, busy, clusterId]);
   useEffect(() => setPage(0), [search, sort]);
   const apply = () => {
     const b = range === 'custom' ? new Date(end).getTime() : Date.now(), a = range === 'custom' ? new Date(start).getTime() : b - Number(range) * 3600000;
@@ -41,6 +51,7 @@ export function CostDashboard() {
       <label>Group by<select aria-label="Cost grouping" title="Workloads are grouped by namespace, kind and controller" value={group} onChange={e => setGroup(e.target.value as CostGroup)}><option value="namespace">Namespace</option><option value="node">Node</option><option value="controller">Workload</option></select></label>
       <label className="check-row"><input type="checkbox" checked={idle} onChange={e => setIdle(e.target.checked)}/>Include idle costs</label><div className="cost-filter-actions"><button className="primary" onClick={apply}>Apply range</button><button disabled={busy} onClick={() => { const b = appliedRange === 'custom' ? query.end : Date.now(); setQuery({ ...query, end: b, start: appliedRange === 'custom' ? query.start : b - Number(appliedRange) * 3600000, forceRefresh: true }); }}><RefreshCw size={15} aria-hidden="true" className={busy ? 'spin' : undefined}/>Refresh report</button></div>
     </div>
+    <p className="muted">{appliedRange === 'custom' ? 'Fixed historical range. Refresh report to fetch updated data for these dates.' : 'Live report · refreshes every minute. New observations are included as monitoring collects them.'}</p>
     {formError && <p className="inline-error" role="alert">{formError}</p>}
     {busy && <p role="status">Loading cost allocations...</p>}{error && <p className="inline-error" role="alert">{error}{report ? ' Displayed report may be stale. Export is disabled until a successful refresh.' : ''}</p>}
     {report && <><p className="muted">Source: {report.source} · {report.currency} · {new Date(report.start).toLocaleString()} to {new Date(report.end).toLocaleString()} · Grouped by {report.group} · Generated {new Date(report.generatedAt).toLocaleString()}</p>

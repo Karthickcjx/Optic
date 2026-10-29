@@ -13,6 +13,7 @@ export interface CostEfficiency { cpu?: number; memory?: number }
 export interface CostHistoryCoverage {
   expectedIntervals: number; observedIntervals: number; missingIntervals: number; partialIntervals?: number;
   observedMilliseconds: number; edgeExcludedMilliseconds: number; observedStart?: number; observedEnd?: number;
+  leadingMissingIntervals?: number; internalMissingIntervals?: number; trailingMissingIntervals?: number;
 }
 export interface CostReport {
   source: string; currency: string; estimated: boolean; start: number; end: number; group: CostGroup;

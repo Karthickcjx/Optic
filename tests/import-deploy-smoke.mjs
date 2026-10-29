@@ -27,6 +27,17 @@ try {
   app = await electron.launch({ args: ['.', `--user-data-dir=${join(temp, 'profile')}`], env });
   const page = await app.firstWindow(); page.setDefaultTimeout(15000); const errors = []; page.on('pageerror', e => errors.push(e.message));
   await expect(page.getByText('fixture', { exact: true }).first()).toBeVisible();
+  const navResize = page.getByRole('separator', { name: 'Resize Navigator', exact: true });
+  const navStart = await navResize.boundingBox();
+  await page.mouse.move(navStart.x + navStart.width / 2, navStart.y + 120); await page.mouse.down();
+  await page.mouse.move(navStart.x + navStart.width / 2 + 100, navStart.y + 120); await page.mouse.up();
+  await expect(navResize).toHaveAttribute('aria-valuenow', '345');
+  await navResize.focus(); await page.keyboard.press('ArrowRight');
+  await expect(navResize).toHaveAttribute('aria-valuenow', '355');
+  await page.getByTitle('Toggle Navigator', { exact: true }).click(); await expect(page.locator('.navigator')).toHaveCount(0);
+  await page.getByTitle('Toggle Navigator', { exact: true }).click(); await expect(navResize).toHaveAttribute('aria-valuenow', '355');
+  await page.reload(); await expect(page.getByRole('separator', { name: 'Resize Navigator', exact: true })).toHaveAttribute('aria-valuenow', '355');
+  await navResize.dblclick(); await expect(navResize).toHaveAttribute('aria-valuenow', '245');
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await mkdir('artifacts/import-deploy', { recursive: true });
   await page.screenshot({ path: 'artifacts/import-deploy/applications-header.png' });

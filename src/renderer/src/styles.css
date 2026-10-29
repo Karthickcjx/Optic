@@ -258,3 +258,27 @@
 .terminal-context-menu { position: fixed; z-index: 110; width: 226px; padding: 4px; background: #292f36; border: 1px solid #525e69; border-radius: 4px; box-shadow: 0 6px 20px #0008; }
 .terminal-context-menu button { width: 100%; justify-content: space-between; text-align: left; min-height: 30px; }
 .terminal-context-menu small { color: #91a0af; margin-left: 10px; }
+.navigator-container { position: relative; flex-shrink: 0; display: flex; min-width: 0; min-height: 0; }
+.navigator-container > .navigator { width: 100%; min-width: 0; flex: 1; }
+.navigator-resize { position: absolute; top: 0; bottom: 0; right: -3px; width: 6px; cursor: col-resize; touch-action: none; z-index: 5; }
+.navigator-resize:hover, .navigator-resize:focus-visible, .navigator-resize:active { background: #479ed6; outline: none; }
+.kubeconfig-source-dialog { width: min(600px, 92vw); max-height: calc(100vh - 72px); overflow-y: auto; border: 1px solid #48525e; border-radius: 8px; background: #252a30; box-shadow: 0 20px 70px #0009; }
+.kubeconfig-source-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 24px 20px; }
+.kubeconfig-source-dialog h2 { font-size: 20px; font-weight: 600; color: #e1e6ed; }
+.kubeconfig-source-dialog header p { margin-top: 7px; color: #9ba8b7; font-size: 12px; line-height: 1.6; }
+.kubeconfig-source-dialog header > button { flex-shrink: 0; padding: 5px; color: #9ba8b7; }
+.kubeconfig-source-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 24px; }
+.kubeconfig-source-options > .kubeconfig-source-card { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 20px; text-align: left; white-space: normal; border: 1px solid #414b57; border-radius: 6px; background: #292f36; }
+.kubeconfig-source-options > .kubeconfig-source-card:hover { background: #2c3742; border-color: #5da9d8; }
+.kubeconfig-source-options > .kubeconfig-source-card:focus-visible { outline: 2px solid #5da9d8; outline-offset: 2px; }
+.kubeconfig-source-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #79bde6; background: #314353; border-radius: 7px; }
+.kubeconfig-source-card strong { font-size: 15px; font-weight: 600; color: #e1e6ed; }
+.kubeconfig-source-description { color: #a0adbc; font-size: 12px; line-height: 1.65; }
+.kubeconfig-source-action { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 8px; margin-top: auto; color: #79bde6; font-size: 12px; font-weight: 500; }
+.kubeconfig-source-hint { padding: 16px 24px 0; color: #9ba8b7; font-size: 12px; line-height: 1.6; }
+.kubeconfig-source-trust { display: flex; align-items: flex-start; gap: 9px; margin: 16px 24px 22px; color: #8897a8; }
+.kubeconfig-source-trust svg { flex-shrink: 0; margin-top: 1px; }
+.kubeconfig-source-trust p { font-size: 11px; line-height: 1.6; }
+.kubeconfig-source-dialog > footer { display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid #3a424c; background: #22272d; }
+.kubeconfig-source-dialog > footer button { min-height: 32px; min-width: 80px; padding: 6px 16px; border: 1px solid #48525e; background: #2c333b; }
+@media (max-width: 600px) { .kubeconfig-source-options { grid-template-columns: 1fr; } }
