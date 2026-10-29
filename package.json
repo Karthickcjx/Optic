@@ -15,7 +15,10 @@
     "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs && node tests/cost-dashboard-smoke.mjs && node tests/security-smoke.mjs && node tests/import-deploy-smoke.mjs",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "licenses": "node scripts/licenses.mjs"
+    "licenses": "node scripts/licenses.mjs",
+    "postinstall": "node scripts/prepare-native.mjs",
+    "predev": "node scripts/prepare-native.mjs",
+    "prebuild": "node scripts/prepare-native.mjs"
   },
   "dependencies": {
     "@kubernetes/client-node": "2.0.1",
