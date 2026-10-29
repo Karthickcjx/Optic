@@ -53,11 +53,11 @@ At initial validation, `npm audit --omit=dev` reported zero vulnerabilities. The
 - `src/renderer`: dashboard, tables, details, logs and terminals.
 - `src/shared`: contracts and pure presentation helpers.
 - `tests`: boundary tests and Electron integration smoke test.
-- [ARCH_SPEC.md](ARCH_SPEC.md): evidence boundary, architecture, complete application IPC matrix and limitations.
+- [ARCH_SPEC.md](ARCH_SPEC.md): architecture, application IPC matrix and limitations.
 
 The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards, extension hosting and Helm are not implemented. Cluster credentials remain in main; Secret values are not exposed in the UI. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
 
-MIT licensed. This project contains no proprietary application source or branding.
+MIT licensed.
 
 ## Cluster menu and operational controls
 

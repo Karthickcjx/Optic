@@ -1,26 +1,10 @@
 # Optic architecture
 
-Status: expanded desktop workspace, October 23, 2026. Independent TypeScript implementation; no target source, assets, tokens, or closed-source branding are included.
+Optic is a Kubernetes desktop workspace built with TypeScript, Electron, React and Zustand.
 
-## Evidence and design boundary
+## Architecture overview
 
-The inspected installed desktop application was version `2026.10.121159-latest`. Its ASAR SHA-256 was `ed2fa48861a43193e1132375fc09baddf415bb51db369406ae26454548be4f56`.
-
-REA whole-application analysis retained partial evidence `ev_82a087dee002f0b668607ccb1e64c1aec12a382c591eb723eb419424b5bcbbee`; the result budget was exhausted before all sources were analyzed. Five unpacked executables disagreed with archive integrity metadata. Supplemental inspection read shipped source maps without executing their contents. Initial runtime evidence covered the process tree and listening sockets. A subsequent read-only UI inspection observed the installed application's welcome screen, navigator, resource table, overview gauges, workspace tabs and terminal dock. This is not a complete reconstruction of the target's IPC protocol or a claim of behavioral equivalence.
-
-| Observation from inspection | Independent implementation decision |
-| --- | --- |
-| Main/renderer separation, native authentication proxy, resource stores | Main owns SDK clients and credentials; direct SDK requests replace the native/local proxy topology |
-| MobX and feature dependency injection | Zustand for renderer selection/tab state; small explicit TypeScript services in main |
-| Dynamically registered request/message/computed channels | Fixed channel allowlist, runtime schemas, typed request/results and explicit stream ownership |
-| Node-enabled window factory in inspected source | Sandboxed renderer, context isolation, no Node integration, narrow preload |
-| LIST/WATCH stores and resource-version recovery | Snapshot + WATCH cache per subscription, coalesced updates, relist on reconnect |
-| Multiple PTY transports | One utility-process helper per terminal, with tab-scoped input/output and flow control |
-| Inspected log viewer polls | Chunked REST follow streams with cancellation and acknowledgement backpressure |
-| Prometheus provider discovery and Service proxy queries | Documented observation; Prometheus UI/provider integration is outside this initial core |
-| Privileged CommonJS extension feature loading | No extension evaluator; a future extension API needs a separate capability design |
-
-Evidence source-map areas included cluster configuration/model discovery, cluster connection/accessibility, internal proxy setup, cached/watched Kubernetes resources, messaging adapters, pod logs, terminal sessions, main view, and installed extension lifecycle. Their implementation text is not retained in this repository.
+The Electron main process owns Kubernetes clients, credentials and local processes. A sandboxed renderer presents cluster resources through a validated, typed IPC bridge. Resource subscriptions use LIST/WATCH with reconnect recovery; logs and terminal sessions use owned streams with flow control.
 
 ## Processes and trust boundaries
 
