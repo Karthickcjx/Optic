@@ -1,6 +1,6 @@
 # Optic
 
-**Public beta: 0.1.0-beta.1.** Independent software, not affiliated with Lens or Mirantis.
+**Public beta: 0.1.0-beta.1.** A Kubernetes desktop workspace.
 
 See [release notes and installation requirements](RELEASE_NOTES.md), [security policy](SECURITY.md), and [downloads](https://github.com/Karthickcjx/Optic/releases). The initial installer targets Windows x64 and is unsigned. macOS/Linux binaries are not yet supported downloads.
 
@@ -63,11 +63,11 @@ Dependency versions are pinned in package.json and package-lock.json. Release bu
 - `src/renderer`: dashboard, tables, details, logs and terminals.
 - `src/shared`: contracts and pure presentation helpers.
 - `tests`: boundary tests and Electron integration smoke test.
-- [ARCH_SPEC.md](ARCH_SPEC.md): evidence boundary, architecture, complete application IPC matrix and limitations.
+- [ARCH_SPEC.md](ARCH_SPEC.md): architecture, application IPC matrix and limitations.
 
 The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards are supported; extension hosting is not implemented. Helm Charts and Releases provide general chart/release management; cluster settings also include a separate monitoring-stack workflow. Cluster credentials remain in main; Kubernetes Secret payloads are hidden in resource and Helm manifest views. Helm values and notes can contain sensitive configuration and remain visible for editing. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
 
-MIT licensed. This project contains no proprietary application source or branding.
+MIT licensed.
 
 ## Cluster menu and operational controls
 
@@ -109,7 +109,7 @@ Add kubeconfig offers filesystem and clipboard imports from the Navigator + menu
 
 ## Helm Charts and Releases
 
-Open **Helm > Charts** or **Helm > Releases** under a cluster. Chart catalogs are fetched from public HTTPS indexes without launching Helm. Argo, Bitnami and Prometheus Community are default sources; Manage repositories adds, replaces or removes Optic-local sources. Search, sort, paginate and export the filtered chart catalog as CSV. The supplied Lens CSV was a reference snapshot of 143 Bitnami charts, not a fixed catalog or proof of current package availability.
+Open **Helm > Charts** or **Helm > Releases** under a cluster. Chart catalogs are fetched from public HTTPS indexes without launching Helm. Argo, Bitnami and Prometheus Community are default sources; Manage repositories adds, replaces or removes Optic-local sources. Search, sort, paginate and export the filtered chart catalog as CSV. Chart availability is determined by the configured repositories.
 
 Select a chart, pin a version, choose release name/namespace and edit YAML values. Load chart defaults and README when needed. **Preview changes** renders the chart with Helm; **Review and apply** shows the selected context and exact operation. Changes to any input invalidate the preview, which also expires after ten minutes. Preview is template rendering, not API-server validation or a guaranteed prediction of hooks/admission behavior. Kubernetes Secret data is hidden in the preview.
 
@@ -192,7 +192,7 @@ AWS Linux on-demand prices are fetched from AWS's public pricing-site feed using
 
 Public-price requests send only the public region/instance type, never kubeconfig credentials or node names. Disable public-price fetching to use local rates only. Requests are bounded and cached for one day in memory; failures fall back visibly. Estimate reports are cached for 30 seconds per cluster/settings/range; explicit Refresh bypasses this cache. Exports include efficiency, coverage, price-source provenance and methodology; JSON additionally includes full node pricing.
 
-References: [Prometheus range queries](https://prometheus.io/docs/prometheus/latest/querying/api/), [AWS EC2 on-demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/), [AWS region metadata](https://b0.p.awsstatic.com/locations/1.0/aws/current/locations.json). These public sources are independent of Lens's proprietary bundle or pricing catalogue.
+References: [Prometheus range queries](https://prometheus.io/docs/prometheus/latest/querying/api/), [AWS EC2 on-demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/), [AWS region metadata](https://b0.p.awsstatic.com/locations/1.0/aws/current/locations.json).
 
 
 Cost history coverage distinguishes absent observation intervals from small time-range rounding differences. The dashboard shows the first/last available estimate interval and interval counts. **Last 1 hour**, **Last 6 hours** and **Use available history** help focus on recently collected telemetry. The latter narrows to the observed span; it does not fill interior gaps. Rounding-only exclusions appear in methodology notes, while genuinely missing intervals retain a warning and are excluded from totals.
@@ -215,9 +215,7 @@ Reports refresh every minute while the page is visible, with manual refresh. Ref
 
 Install/configure **trivy-operator** through **Helm Charts**, using Aqua's repository `https://aquasecurity.github.io/helm-charts/`. Select a chart version, review values and apply explicitly. Opening Security Center does not install anything. The active kubeconfig needs list/get access to `vulnerabilityreports`, `configauditreports`, `rbacassessmentreports`, `clusterrbacassessmentreports` and `exposedsecretreports` in `aquasecurity.github.io/v1alpha1`. Pod and Role/ClusterRole listing supplies unscanned inventory. If namespace discovery is denied, enter a permitted namespace directly.
 
-Reads are limited to 1,000 reports per type and 5,000 findings per detail view, with incomplete-result notices and paginated tables. Only normalized report fields cross IPC. Optic does not bundle a scanner, copy Lens's proprietary registry scan service, reconstruct scan history, or support SBOM/compliance/node vulnerability report types yet.
-
-The layout was informed by the supplied Lens screenshot and REA static inspection of the installed Security Center module. The full renderer exceeded REA's memory budget; the isolated 191,861-byte module parsed without syntax errors, with unresolved dynamic/dependency relationships. Focused evidence: `ev_748a45c62b21f9e9fa68016da51386f2fd27760a50a5b7c21e2bfce7d53a3abc`. Findings and provenance are retained locally under ignored `artifacts/lens-security-inspection/`; proprietary source is not included in Optic.
+Reads are limited to 1,000 reports per type and 5,000 findings per detail view, with incomplete-result notices and paginated tables. Only normalized report fields cross IPC. Optic does not bundle a scanner or registry scanning service, reconstruct scan history, or support SBOM/compliance/node vulnerability report types yet.
 
 References: [Trivy vulnerability reports](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/vulnerability-report/), [configuration audits](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/configaudit-report/), and [RBAC assessments](https://aquasecurity.github.io/trivy-operator/latest/docs/crds/rbacassessment-report/). Unit and Electron smoke tests cover normalization, image grouping, secret redaction, RBAC scopes, navigation, charts, installation instructions, permission failures and missing-operator states using controlled Kubernetes API fixtures.
 ## Terminal profiles, splits and clipboard
