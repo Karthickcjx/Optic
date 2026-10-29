@@ -1,6 +1,6 @@
 # Optic 0.1.0-beta.1
 
-First public beta of an independent Kubernetes desktop workspace. Optic is not affiliated with Lens or Mirantis.
+First public beta of Optic, a Kubernetes desktop workspace.
 
 ## Included
 
