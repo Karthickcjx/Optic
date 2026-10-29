@@ -2,6 +2,7 @@ name: Public beta release
 on:
   push:
     tags: ['v*-beta.*']
+    branches: ['release/**']
   workflow_dispatch:
 permissions:
   contents: read
