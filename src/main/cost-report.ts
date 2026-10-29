@@ -94,15 +94,35 @@ export class CostReports {
     const config = this.clusters.get(query.clusterId).config;
     if (settings.costSource === 'estimate') return this.estimates.read(query);
     const endpoints = settings.costEndpoint.service ? [settings.costEndpoint] : (await new Providers(this.clusters).discover(query.clusterId, settings.costSource === 'opencost' ? /opencost/i : settings.costSource === 'kubecost' ? /kubecost|cost-analyzer/i : /opencost|kubecost|cost-analyzer/i)).slice(0, 3);
-    const params = new URLSearchParams({ window: `${new Date(query.start).toISOString()},${new Date(query.end).toISOString()}`, aggregate: query.group === 'controller' ? 'namespace,controllerKind,controller' : query.group, step: query.end - query.start <= 2 * 86400000 ? '1h' : '1d', resolution: '5m', accumulate: 'false', includeIdle: String(query.includeIdle), shareIdle: 'false' });
+    // OpenCost's window parser requires whole-second RFC3339 timestamps.
+    // Round inward so the provider never bills outside the requested interval.
+    const providerQuery = { ...query, start: Math.ceil(query.start / 1000) * 1000, end: Math.floor(query.end / 1000) * 1000 };
+    const timestamp = (time: number) => new Date(time).toISOString().replace('.000Z', 'Z');
+    const params = new URLSearchParams({ window: `${timestamp(providerQuery.start)},${timestamp(providerQuery.end)}`, aggregate: query.group === 'controller' ? 'namespace,controllerKind,controller' : query.group, step: query.end - query.start <= 2 * 86400000 ? '1h' : '1d', resolution: '5m', accumulate: 'false', includeIdle: String(query.includeIdle), shareIdle: 'false' });
     let denied = false;
     for (const endpoint of endpoints) {
       // Kubecost deployments commonly expose /model/allocation, OpenCost /allocation.
       const paths = settings.costSource === 'kubecost' || /kubecost|cost-analyzer/i.test(endpoint.service) ? ['/model/allocation', '/allocation'] : ['/allocation'];
       for (const path of paths) {
         try {
-          const response = await kubeJson(config, `${serviceProxy(endpoint)}${path}?${params}`);
-          return { ...base, ...parseCostReport(response, query), source: `${endpoint.namespace}/${endpoint.service}`, notes: [
+          const stepMs = query.end - query.start <= 2 * 86400000 ? 3600000 : 86400000;
+          const fullEnd = providerQuery.start + Math.floor((providerQuery.end - providerQuery.start) / stepMs) * stepMs;
+          // OpenCost extends a partial final step past the requested end. Query
+          // that edge separately with its exact duration to avoid overcharging.
+          const ranges = [
+            ...(fullEnd > providerQuery.start ? [[providerQuery.start, fullEnd, stepMs]] : []),
+            ...(providerQuery.end > fullEnd ? [[fullEnd, providerQuery.end, providerQuery.end - fullEnd]] : [])
+          ];
+          const responses = [];
+          for (const [start, end, duration] of ranges) {
+            const requestParams = new URLSearchParams(params);
+            requestParams.set('window', `${timestamp(start)},${timestamp(end)}`);
+            if (duration !== stepMs) requestParams.set('step', `${duration / 1000}s`);
+            responses.push(await kubeJson(config, `${serviceProxy(endpoint)}${path}?${requestParams}`));
+          }
+          if (responses.some(r => (r.code && r.code !== 200) || !Array.isArray(r.data))) throw new AppError('COST_RESPONSE', 'The allocation service returned an unsupported response.');
+          const response = { ...responses[0], data: responses.flatMap(r => r.data), warnings: responses.flatMap(r => r.warnings ?? []) };
+          return { ...base, ...parseCostReport(response, providerQuery), source: `${endpoint.namespace}/${endpoint.service}`, notes: [
             'Historical allocations use the prices retained by the configured OpenCost/Kubecost provider, including its GCP pricing configuration. Optic does not reprice those intervals using current VM prices.',
             'Component costs include returned adjustments. Network route costs are a breakdown of network cost, not additional charges. Effective rates divide interval costs by reported allocation units; changes can reflect pricing, discounts or a different resource mix.',
             'Storage, network and GPU costs require provider telemetry and pricing. A reported zero is the provider result, not proof that collection is complete. Missing fields remain unavailable. Cloud invoice reconciliation and past data before provider retention are not inferred.'

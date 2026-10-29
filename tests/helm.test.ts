@@ -8,6 +8,12 @@ import { helmFailure, helmReleaseStatuses } from '../src/main/helm-cli';
 import { schemas } from '../src/main/validation';
 import type { HelmInstall } from '../src/shared/helm';
 vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
+vi.mock('../src/main/helm-index', () => ({ parseHelmIndex: async (source: string) => {
+ const { parse } = await import('yaml');
+ const entries = parse(source).entries;
+ for (const versions of Object.values(entries) as any[][]) versions.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
+ return entries;
+} }));
 let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'optic-helm-test-')); vi.resetAllMocks(); });
 afterEach(() => { vi.unstubAllGlobals(); rmSync(root, { recursive: true, force: true }); });
@@ -22,6 +28,26 @@ function setup(otherBusy = () => false) {
 function respond(fn: (args: string[]) => string) {
  vi.mocked(execFile).mockImplementation((...args: any[]) => { const output = fn(args[1]); queueMicrotask(() => args.at(-1)(null, output)); return { kill: vi.fn() } as any; });
 }
+it('isolates catalog commands from CLI repository caches and cleans up on success and failure', async () => {
+ const { service } = setup(); const directories: string[] = [];
+ respond(args => {
+  const directory = args[args.indexOf('--repository-cache') + 1];
+  directories.push(directory);
+  expect(readFileSync(args[args.indexOf('--repository-config') + 1], 'utf8')).toBe('apiVersion: v1\nrepositories: []\n');
+  expect(existsSync(directory)).toBe(true);
+  return '{}';
+ });
+ await service.chartInfo('bitnami', 'nginx', '2.0.0');
+ expect(new Set(directories).size).toBe(2);
+ expect(directories.every(dir => !existsSync(dir))).toBe(true);
+ vi.mocked(execFile).mockImplementation((...args: any[]) => {
+  directories.push(args[1][args[1].indexOf('--repository-cache') + 1]);
+  queueMicrotask(() => args.at(-1)({code: 1}, '', 'no cached repo found private-path'));
+  return {kill: vi.fn()} as any;
+ });
+ await expect(service.releases('c')).rejects.toThrow('repository cache');
+ expect(directories.every(dir => !existsSync(dir))).toBe(true);
+});
 it('reads and persists public repository catalogs without executing Helm', async () => {
  const { service } = setup();
  expect((await service.charts('bitnami'))[0]).toMatchObject({ name: 'nginx', version: '2.0.0' });
@@ -30,6 +56,15 @@ it('reads and persists public repository catalogs without executing Helm', async
  service.saveRepository({ name: 'custom', url: 'https://charts.example.com' });
  expect(new HelmService({} as any, join(root, 'repos.json')).repositories()).toContainEqual({ name: 'custom', url: 'https://charts.example.com' });
  expect(schemas['helm:repository-save'].safeParse({ repository: { name: 'x', url: 'https://user:password@example.com' }, remove: false }).success).toBe(false);
+});
+it('shares concurrent index requests and reuses the parsed catalog', async () => {
+ const { service } = setup();
+ await Promise.all([service.charts('bitnami'), service.versions('bitnami', 'nginx'), service.charts('bitnami')]);
+ expect(fetch).toHaveBeenCalledTimes(1);
+ await service.charts('bitnami');
+ expect(fetch).toHaveBeenCalledTimes(1);
+ await service.charts('bitnami', true);
+ expect(fetch).toHaveBeenCalledTimes(2);
 });
 it('pins the exact preview inputs, hides Secret payloads, scopes commands and removes private files', async () => {
  const { service, paths } = setup();

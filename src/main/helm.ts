@@ -1,10 +1,12 @@
 import { execFile, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, mkdtempSync, rmSync } from 'node:fs';
 import { parse, parseAllDocuments, stringify } from 'yaml';
 import { AppError } from './errors';
 import { helmFailure, helmReleaseStatuses } from './helm-cli';
+import { parseHelmIndex } from './helm-index';
 import type { ClusterManager } from './clusters';
 import type { HelmRepository, HelmChart, HelmTarget, HelmInstall, HelmDetails, HelmRelease, HelmRevision } from '../shared/helm';
 
@@ -37,6 +39,8 @@ export function installArgs(input: HelmInstall, reference: string, valuesPath: s
 export class HelmService {
   private repos = defaults;
   private indexes = new Map<string, { expires: number; entries: Record<string, any[]> }>();
+  private indexRequests = new Map<string, Promise<Record<string, any[]>>>();
+  private indexControllers = new Set<AbortController>();
   private children = new Set<ChildProcess>();
   private busy = new Set<string>();
   private previews = new Map<string, { hash: string; reference: string; expires: number }>();
@@ -55,20 +59,30 @@ export class HelmService {
   private async index(name: string, refresh = false) {
     const repo = this.repository(name), cached = this.indexes.get(name);
     if (!refresh && cached && cached.expires > Date.now()) return cached.entries;
+    const pending = this.indexRequests.get(repo.url);
+    if (pending) return pending;
+    const request = this.loadIndex(repo);
+    this.indexRequests.set(repo.url, request);
+    try { return await request; }
+    finally { if (this.indexRequests.get(repo.url) === request) this.indexRequests.delete(repo.url); }
+  }
+  private async loadIndex(repo: HelmRepository) {
+    if (this.disposed) throw new AppError('HELM_CLOSED', 'The Helm service has closed.');
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 45000);
+    this.indexControllers.add(controller);
     try {
       const response = await fetch(`${repo.url.replace(/\/$/, '')}/index.yaml`, { signal: controller.signal });
       if (!response.ok || !response.body) throw new Error();
       const reader = response.body.getReader(), chunks: Uint8Array[] = []; let size = 0;
       while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 64_000_000) { controller.abort(); throw new Error(); } chunks.push(value); }
-      const data = parse(Buffer.concat(chunks).toString('utf8'));
-      if (data?.apiVersion !== 'v1' || !data.entries || typeof data.entries !== 'object') throw new Error();
-      this.indexes.set(name, { entries: data.entries, expires: Date.now() + 300000 }); return data.entries as Record<string, any[]>;
+      const entries = await parseHelmIndex(Buffer.concat(chunks).toString('utf8'), controller.signal);
+      if (this.repos.some(r => r.name === repo.name && r.url === repo.url)) this.indexes.set(repo.name, { entries, expires: Date.now() + 300000 });
+      return entries;
     } catch { throw new AppError('REPOSITORY_UNAVAILABLE', 'Could not read the repository index. Check its HTTPS URL and network access. Catalogs larger than 64 MB are not supported.'); }
-    finally { clearTimeout(timer); }
+    finally { clearTimeout(timer); this.indexControllers.delete(controller); }
   }
   private versionsFrom(entries: Record<string, any[]>, chart: string) {
-    return (Array.isArray(entries[chart]) ? entries[chart] : []).filter(e => e.name === chart && typeof e.version === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)?$/.test(e.version)).sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
+    return entries[chart] ?? [];
   }
   async charts(repository: string, refresh = false): Promise<HelmChart[]> {
     const entries = await this.index(repository, refresh);
@@ -82,7 +96,7 @@ export class HelmService {
     throw new AppError('CHART_NOT_FOUND', 'This chart has no supported HTTPS or public OCI package URL.');
   }
   isBusy(id: string) { return this.busy.has(id); }
-  dispose() { this.disposed = true; for (const child of this.children) child.kill(); this.children.clear(); this.previews.clear(); }
+  dispose() { this.disposed = true; for (const controller of this.indexControllers) controller.abort(); for (const child of this.children) child.kill(); this.children.clear(); this.previews.clear(); }
   private async chartCommand(reference: string, args: string[]) {
     // Helm's Windows content cache cannot rename concurrent downloads of the same chart.
     const previous = this.chartCommands.get(reference) ?? Promise.resolve();
@@ -94,15 +108,22 @@ export class HelmService {
   }
   private async command(args: string[]) {
     if (this.disposed) throw new AppError('HELM_CLOSED', 'The Helm service has closed. Reopen Optic before retrying.');
+    let repositoryDirectory: string | undefined;
     try {
+      // Chart references are already resolved from Optic's catalog. Do not let
+      // unrelated, stale repositories in the user's CLI config break them.
+      repositoryDirectory = mkdtempSync(join(tmpdir(), 'optic-chart-helm-'));
+      const repositoryConfig = join(repositoryDirectory, 'repositories.yaml');
+      writeFileSync(repositoryConfig, 'apiVersion: v1\nrepositories: []\n', { mode: 0o600 });
       return await new Promise<string>((resolve, reject) => {
-        const child = execFile('helm', args, { shell: false, windowsHide: true, timeout: 360000, maxBuffer: 8_000_000 }, (error, stdout, stderr) => {
+        const child = execFile('helm', [...args, '--repository-config', repositoryConfig, '--repository-cache', repositoryDirectory!], { shell: false, windowsHide: true, timeout: 360000, maxBuffer: 8_000_000 }, (error, stdout, stderr) => {
           this.children.delete(child);
           if (error) reject(new AppError('HELM_FAILED', helmFailure(error, stderr)));
           else resolve(stdout);
         }); this.children.add(child);
       });
     } catch (e) { if (e instanceof AppError) throw e; throw new AppError('HELM_BLOCKED', 'Helm could not start. Verify installation and Windows application-control approval.'); }
+    finally { if (repositoryDirectory) rmSync(repositoryDirectory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }); }
   }
   private async withConfig<T>(id: string, fn: (path: string) => Promise<T>) { const lease = this.clusters.cliConfig(id); try { return await fn(lease.path); } finally { lease.cleanup(); } }
   private json(text: string) { try { return JSON.parse(text); } catch { throw new AppError('HELM_OUTPUT', 'Helm returned unexpected JSON output. Check your Helm version.'); } }

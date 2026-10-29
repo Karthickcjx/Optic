@@ -4,6 +4,7 @@ export const helmReleaseStatuses = ['--deployed', '--failed', '--pending', '--un
 // Never expose raw stderr: templates and authentication plugins can print secrets.
 export function helmFailure(error: { code?: string | number | null; killed?: boolean }, stderr = '') {
   if (error.code === 'ENOENT') return 'Helm is not installed or is missing from PATH. Install Helm and restart Optic.';
+  if (/no cached repo found|no cached repository|failed to load.*index|index\.yaml:.*(?:cannot find|no such file)/i.test(stderr)) return 'Helm repository cache is missing or unreadable. Restart Optic to load the latest Helm fixes, refresh the chart catalog and retry.';
   if (error.killed || /timed out|deadline exceeded/i.test(stderr)) return 'Helm timed out waiting for the operation. Check release status and pod events before retrying; some resources may already exist.';
   if (/cannot re-use a name|already exists/i.test(stderr)) return 'A release or resource with this name already exists. Open Helm Releases and inspect it; upgrade the existing release or choose another name.';
   if (/another operation .* in progress/i.test(stderr)) return 'Another Helm operation is pending for this release. Inspect its status and history before retrying.';

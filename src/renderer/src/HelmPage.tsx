@@ -10,7 +10,7 @@ export function HelmPage({ mode }: { mode: 'charts' | 'releases' }) {
   const operationRevision = useHelmOperations(s => s.revision);
   const mutationRunning = useHelmOperations(s => s.operations.some(o => o.clusterId === clusterId && o.status === 'running'));
   const clusterName = clusters.find(c => c.id === clusterId)?.name;
-  const [repos, setRepos] = useState<HelmRepository[]>([]), [repo, setRepo] = useState('bitnami');
+  const [repos, setRepos] = useState<HelmRepository[]>([]), [repo, setRepo] = useState('');
   const [charts, setCharts] = useState<HelmChart[]>([]), [releases, setReleases] = useState<HelmRelease[]>([]);
   const [search, setSearch] = useState(''), [namespace, setNamespace] = useState(''), [page, setPage] = useState(0), [descending, setDescending] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');

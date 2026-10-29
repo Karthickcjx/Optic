@@ -8,6 +8,17 @@ vi.mock('../src/main/kube-http', () => ({ kubeJson: vi.fn() }));
 const query: CostQuery = { clusterId: 'test', start: 0, end: 7200000, group: 'namespace', includeIdle: true };
 const row = (start: number, extra = {}) => ({ totalCost: 20, cpuCost: 4, ramCost: 2, gpuCost: 8, pvCost: 4, networkCost: 2, cpuCoreHours: 2, ramByteHours: 2 * 1024 ** 3, gpuHours: 1, pvByteHours: 4 * 1024 ** 3, networkTransferBytes: 1024 ** 3, networkCrossZoneCost: 0.5, networkCrossRegionCost: 0.5, networkInternetCost: 1, window: { start: new Date(start).toISOString(), end: new Date(start + 3600000).toISOString() }, ...extra });
 describe('richer cost accounting', () => {
+  it('uses whole-second provider windows rounded inside the requested range', async () => {
+    vi.mocked(kubeJson).mockImplementation(async (_config, path) => {
+      const window = new URL(path, 'http://test').searchParams.get('window');
+      const params = new URL(path, 'http://test').searchParams;
+      if (params.get('step') === '1h') expect(window).toBe('1970-01-01T00:00:01Z,1970-01-01T01:00:01Z');
+      else { expect(window).toBe('1970-01-01T01:00:01Z,1970-01-01T02:00:00Z'); expect(params.get('step')).toBe('3599s'); }
+      return { data: [] };
+    });
+    const manager = { get: () => ({ config: {} }), settings: () => ({ ...defaultClusterSettings, costSource: 'opencost', costEndpoint: { namespace: 'cost', service: 'opencost', port: 9003 } }) } as any;
+    await new CostReports(manager).read({ ...query, start: 123, end: 7200456 });
+  });
   it('retains units, network classifications and adjustments without adding network twice', () => {
     const result = parseCostReport({ currency: 'USD', data: [{ team: row(0, { totalCost: 19, gpuCostAdjustment: -1 }) }, { team: row(3600000) }] }, query);
     const team = result.allocations[0];

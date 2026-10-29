@@ -1,5 +1,8 @@
 import { parse } from 'yaml';
 import { execFile, type ChildProcess } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { ClusterManager } from './clusters';
 import type { MonitoringChange, MonitoringComponent } from '../shared/cluster-settings';
 import { AppError } from './errors';
@@ -61,15 +64,21 @@ export class Monitoring {
   }
   private async run(id: string, args: string[]) {
     const lease = this.clusters.cliConfig(id);
+    let repositoryDirectory: string | undefined;
     try {
+      // Monitoring uses an explicit public repository. Unrelated CLI repositories
+      // with missing caches must not prevent installing or reading this stack.
+      repositoryDirectory = mkdtempSync(join(tmpdir(), 'optic-monitoring-helm-'));
+      const repositoryConfig = join(repositoryDirectory, 'repositories.yaml');
+      writeFileSync(repositoryConfig, 'apiVersion: v1\nrepositories: []\n', { mode: 0o600 });
       return await new Promise<string>((resolve, reject) => {
-        const child = execFile('helm', [...args, '--kubeconfig', lease.path], { windowsHide: true, timeout: 210000, maxBuffer: 2_000_000 }, (error, stdout, stderr) => { this.children.delete(child); error ? reject(new AppError('HELM_FAILED', helmFailure(error, stderr))) : resolve(stdout); });
+        const child = execFile('helm', [...args, '--kubeconfig', lease.path, '--repository-config', repositoryConfig, '--repository-cache', repositoryDirectory!], { windowsHide: true, timeout: 210000, maxBuffer: 2_000_000 }, (error, stdout, stderr) => { this.children.delete(child); error ? reject(new AppError('HELM_FAILED', helmFailure(error, stderr))) : resolve(stdout); });
         this.children.add(child);
       });
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('HELM_FAILED', 'Helm could not start. Verify that Helm is installed and allowed by your operating system application-control policy.');
-    } finally { lease.cleanup(); }
+    } finally { try { if (repositoryDirectory) rmSync(repositoryDirectory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }); } finally { lease.cleanup(); } }
   }
   async status(id: string) {
     const entries = JSON.parse(await this.run(id, ['list', '--namespace', 'optic-monitoring', ...helmReleaseStatuses, '--output', 'json']));

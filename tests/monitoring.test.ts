@@ -2,6 +2,8 @@ import { it, expect, vi, afterEach } from 'vitest';
 import { execFile } from 'node:child_process';
 import { Monitoring } from '../src/main/monitoring';
 import { schemas } from '../src/main/validation';
+import { existsSync, readFileSync } from 'node:fs';
+import { helmFailure } from '../src/main/helm-cli';
 vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
 afterEach(() => { vi.unstubAllGlobals(); vi.resetAllMocks(); });
 function catalog(entries: unknown) {
@@ -42,4 +44,32 @@ it('reports blocked Helm startup and cleans the temporary kubeconfig', async () 
   const service = new Monitoring({ cliConfig: () => ({ path: 'temporary-config', cleanup }) } as any);
   await expect(service.status('cluster')).rejects.toThrow('application-control policy');
   expect(cleanup).toHaveBeenCalledOnce();
+});
+it('isolates monitoring from broken user repositories and removes its cache after completion', async () => {
+  const paths: string[] = [];
+  vi.mocked(execFile).mockImplementation((...params: any[]) => {
+    const args = params[1] as string[], config = args[args.indexOf('--repository-config') + 1], cache = args[args.indexOf('--repository-cache') + 1];
+    expect(readFileSync(config, 'utf8')).toBe('apiVersion: v1\nrepositories: []\n');
+    expect(existsSync(cache)).toBe(true); paths.push(cache);
+    const child = { kill: vi.fn() };
+    queueMicrotask(() => params.at(-1)(null, '[]', ''));
+    return child as any;
+  });
+  const cleanup = vi.fn();
+  const service = new Monitoring({ cliConfig: () => ({ path: 'temporary-config', cleanup }) } as any);
+  await expect(service.status('cluster')).resolves.toEqual([]);
+  expect(paths.every(path => !existsSync(path))).toBe(true);
+  expect(cleanup).toHaveBeenCalledOnce();
+});
+it('cleans the isolated cache on Helm failure and gives a safe cache-specific error', async () => {
+  let cache = '';
+  vi.mocked(execFile).mockImplementation((...params: any[]) => {
+    const args = params[1] as string[]; cache = args[args.indexOf('--repository-cache') + 1];
+    queueMicrotask(() => params.at(-1)({ code: 1 }, '', 'Error: no cached repo found: private-path/bitnami-index.yaml'));
+    return { kill: vi.fn() } as any;
+  });
+  const cleanup = vi.fn();
+  await expect(new Monitoring({ cliConfig: () => ({ path: 'temporary-config', cleanup }) } as any).status('cluster')).rejects.toThrow('repository cache');
+  expect(existsSync(cache)).toBe(false); expect(cleanup).toHaveBeenCalledOnce();
+  expect(helmFailure({}, 'no cached repo found private-path')).not.toContain('private-path');
 });

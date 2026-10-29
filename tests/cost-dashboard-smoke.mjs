@@ -32,7 +32,8 @@ const server = createServer((req, res) => {
     requests.push(Object.fromEntries(url.searchParams));
     if (fail) { res.writeHead(403); res.end('{}'); return; }
     const [start, end] = url.searchParams.get('window').split(',').map(Date.parse);
-    const step = url.searchParams.get('step') === '1d' ? 86400000 : 3600000;
+    const requestedStep = url.searchParams.get('step');
+    const step = requestedStep.endsWith('s') ? Number(requestedStep.slice(0, -1)) * 1000 : requestedStep === '1d' ? 86400000 : 3600000;
     const group = url.searchParams.get('aggregate'), data = [];
     for (let t = start; t < end; t += step) {
       const window = { start: new Date(t).toISOString(), end: new Date(Math.min(t + step, end)).toISOString() };
@@ -102,6 +103,7 @@ try {
     await expect(chart.locator('rect')).toHaveCount(count);
   }
   const priorEnd = Date.parse(requests.at(-1).window.split(',')[1]);
+  await expect.poll(() => Math.floor(Date.now() / 1000) * 1000).toBeGreaterThan(priorEnd);
   await page.getByRole('button', { name: 'Refresh report' }).click();
   await expect.poll(() => Date.parse(requests.at(-1).window.split(',')[1])).toBeGreaterThan(priorEnd);
   await page.getByLabel('Cost time range').selectOption('168');

@@ -44,7 +44,7 @@ it('queries historical service API with scope, daily buckets and idle setting', 
   const url = new URL(vi.mocked(kubeJson).mock.calls[0][1], 'http://test');
   expect(url.pathname).toContain('/namespaces/cost/services/opencost%3A9003/proxy/allocation');
   expect(Object.fromEntries(url.searchParams)).toMatchObject({ aggregate: 'namespace,controllerKind,controller', step: '1d', includeIdle: 'false', accumulate: 'false', shareIdle: 'false' });
-  expect(url.searchParams.get('window')).toContain(new Date(start).toISOString());
+  expect(url.searchParams.get('window')).toContain(new Date(start).toISOString().replace('.000Z', 'Z'));
 });
 it('supports Kubecost route fallback and reports permission failures', async () => {
   vi.mocked(kubeJson).mockRejectedValueOnce({ statusCode: 404 }).mockResolvedValueOnce(fixture());

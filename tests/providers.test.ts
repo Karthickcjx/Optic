@@ -19,7 +19,8 @@ it('does not report empty or malformed Prometheus responses as healthy', async (
 it('aggregates cost allocations through the shared report service', async () => {
   const providers = new Providers({ get: () => ({ config: {} }), settings: () => ({ ...defaultClusterSettings, costSource: 'opencost', costEndpoint: { namespace: 'cost', service: 'cost', port: 9003 } }) } as any);
   vi.mocked(kubeJson).mockResolvedValue({ data: [{ team: { totalCost: 2 } }, { team: { totalCost: 3 } }] });
-  expect((await providers.cost('c')).total).toBe(5);
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 0, 2));
+  try { expect((await providers.cost('c')).total).toBe(5); } finally { clock.mockRestore(); }
 
 });
 it('does not issue cost requests when disabled', async () => {
