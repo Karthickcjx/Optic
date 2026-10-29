@@ -1,5 +1,9 @@
 # Optic
 
+**Public beta: 0.1.0-beta.1.** Independent software, not affiliated with Lens or Mirantis.
+
+See [release notes and installation requirements](RELEASE_NOTES.md), [security policy](SECURITY.md), and [downloads](https://github.com/Karthickcjx/Optic/releases). The initial installer targets Windows x64 and is unsigned. macOS/Linux binaries are not yet supported downloads.
+
 An independent Kubernetes desktop workspace built with Electron, TypeScript, React, Zustand and Tailwind. Includes live resource tables, YAML details/editing, pod events, log streams and tabbed native terminals.
 
 ## Run
@@ -20,7 +24,7 @@ npm start
 
 The app reads `~/.kube/config` and `KUBECONFIG`. Use the reload button after changing these files. Selecting a context does not change the original kubeconfig. For an isolated profile, set `WORKBENCH_KUBECONFIG` to an exclusive path list before launching.
 
-Select a resource to open its details. Pod container cards open logs or a shell. Workload details offer rollout restart and scaling where supported; Node details offer cordon/uncordon. Delete, YAML save and restart show confirmation before changing the cluster. Local terminals are available even without a kubeconfig. Pod shell currently requires `/bin/sh` in the container.
+Select a resource to open its details. Pod container cards open logs or a shell. Workload details offer rollout restart and scaling where supported; Node details offer cordon/uncordon. Delete, YAML save and restart show confirmation before changing the cluster. Local terminals are available even without a kubeconfig. Container shells are configurable; the selected executable must exist in the container.
 
 ## Applications and configuration navigation
 
@@ -38,7 +42,7 @@ npm run package
 
 The smoke test uses a local fake Kubernetes API and an isolated temporary kubeconfig; it never needs or mutates a real cluster. It launches the actual Electron build and native PTY. Screenshot output is written to `artifacts/dashboard.png` and `artifacts/overview.png` (ignored by Git).
 
-Verified on Windows x64: TypeScript/production build, all 39 unit tests, Electron smoke test and unpacked application build. The October 23 rebuilt executable was blocked at launch by this machine's organizational Device Guard policy, so its packaged runtime test could not complete. The source build passes through the development Electron runtime; use `npm run dev` for that workflow. The smoke test includes metrics, tabs, search, scaling, restart, cordon, manifest dry-run/apply and expired-watch recovery and verifies that delete is not sent before confirmation. Live-cluster interoperability and macOS/Linux packages have not been verified.
+Windows validation covers unit tests, fixture-backed Electron workflows and packaging. Release publication is gated on the packaged runtime smoke test. Tests do not certify every Kubernetes distribution or provider. See GitHub Actions for the exact commit and platform results.
 
 To test an unpacked Windows build in PowerShell:
 
@@ -48,7 +52,7 @@ node tests/smoke.mjs
 Remove-Item Env:WORKBENCH_TEST_EXECUTABLE
 ```
 
-At initial validation, `npm audit --omit=dev` reported zero vulnerabilities. The full audit reported 8 moderate advisories in the electron-builder development dependency chain; no forced downgrade was applied.
+Dependency versions are pinned in package.json and package-lock.json. Release builds run a production dependency audit; third-party notices are generated from installed production packages and included in the distribution.
 
 `npm run package` produces an unpacked application in `release/`. `npm run dist` builds a platform installer. Signing and notarization credentials are not configured. Native rebuilding is disabled in electron-builder because node-pty ships N-API prebuilds; verify each target OS/architecture before distributing.
 
@@ -61,7 +65,7 @@ At initial validation, `npm audit --omit=dev` reported zero vulnerabilities. The
 - `tests`: boundary tests and Electron integration smoke test.
 - [ARCH_SPEC.md](ARCH_SPEC.md): evidence boundary, architecture, complete application IPC matrix and limitations.
 
-The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards and extension hosting are not implemented. Helm Charts and Releases provide general chart/release management; cluster settings also include a separate monitoring-stack workflow. Cluster credentials remain in main; Kubernetes Secret payloads are hidden in resource and Helm manifest views. Helm values and notes can contain sensitive configuration and remain visible for editing. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
+The workspace includes grouped resource navigation, closable tabs, searchable/sortable tables, dynamic custom-resource instances, metrics-server overview, kubeconfig import, validated manifest apply, scaling, rollout restart and node scheduling controls. Terminal/log sessions survive view changes and dock collapse. Prometheus historical dashboards are supported; extension hosting is not implemented. Helm Charts and Releases provide general chart/release management; cluster settings also include a separate monitoring-stack workflow. Cluster credentials remain in main; Kubernetes Secret payloads are hidden in resource and Helm manifest views. Helm values and notes can contain sensitive configuration and remain visible for editing. A trusted kubeconfig may execute its configured authentication plugin, as with kubectl.
 
 MIT licensed. This project contains no proprietary application source or branding.
 

@@ -174,11 +174,11 @@ try {
       const opened = await window.desktop.request('terminal:open', { id, cols: 80, rows: 24 });
       if (!opened.ok) return { opened, text: '' };
       await window.desktop.request('terminal:write', { id, data: 'echo WORKBENCH_PTY_OK\r' });
-      for (let n = 0; n < 100 && !/\nWORKBENCH_PTY_OK(?:\r?\n|\x1b)/.test(output.join('')); n++) await new Promise(resolve => setTimeout(resolve, 50));
+      for (let n = 0; n < 100 && !/[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/.test(output.join('')); n++) await new Promise(resolve => setTimeout(resolve, 50));
       return { opened, text: output.join('') };
     } finally { dispose(); await window.desktop.request('stream:close', { id }); }
   });
-  assert.equal(result.opened.ok, true, JSON.stringify(result)); assert.match(result.text, /\nWORKBENCH_PTY_OK(?:\r?\n|\x1b)/);
+  assert.equal(result.opened.ok, true, JSON.stringify(result)); assert.match(result.text, /[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/);
   await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();
   await mkdir('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/dashboard.png' });
   for (const response of watchers) response.write(`${JSON.stringify({ type: 'MODIFIED', object: { ...pod, status: { phase: 'Pending' } } })}\n`);

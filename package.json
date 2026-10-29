@@ -1,6 +1,6 @@
 {
   "name": "optic",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "private": true,
   "description": "An independent Kubernetes desktop workbench",
   "license": "MIT",
@@ -8,43 +8,47 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "npm run licenses && npm run typecheck && electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:smoke": "npm run build && node tests/smoke.mjs && node tests/resource-actions-smoke.mjs && node tests/advanced-streams-smoke.mjs && node tests/overview-history-smoke.mjs && node tests/cost-dashboard-smoke.mjs && node tests/security-smoke.mjs && node tests/import-deploy-smoke.mjs",
     "package": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "licenses": "node scripts/licenses.mjs",
+    "postinstall": "node scripts/prepare-native.mjs",
+    "predev": "node scripts/prepare-native.mjs",
+    "prebuild": "node scripts/prepare-native.mjs"
   },
   "dependencies": {
-    "@kubernetes/client-node": "^2.0.1",
-    "@tanstack/react-table": "^8.21.3",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
-    "lucide-react": "^0.577.0",
-    "node-pty": "^1.1.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tar": "^7.5.22",
-    "undici": "^8.12.3",
-    "yaml": "^2.8.2",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.11"
+    "@kubernetes/client-node": "2.0.1",
+    "@tanstack/react-table": "8.21.3",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "lucide-react": "0.577.0",
+    "node-pty": "1.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tar": "7.5.22",
+    "undici": "8.12.3",
+    "yaml": "2.9.1",
+    "zod": "4.6.7",
+    "zustand": "5.0.16"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
-    "@tailwindcss/vite": "^4.2.1",
-    "@types/node": "^24.10.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "latest",
-    "electron": "^45.0.0",
-    "electron-builder": "latest",
-    "electron-vite": "^6.0.0",
-    "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3",
-    "vite": "latest",
-    "vitest": "latest"
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "6.0.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   },
   "build": {
     "appId": "org.clusterworkbench.desktop",
@@ -52,7 +56,8 @@
     "npmRebuild": false,
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "asarUnpack": [
       "node_modules/node-pty/**/*"
@@ -81,7 +86,27 @@
           "logo.png",
           "icon.ico"
         ]
+      },
+      {
+        "from": "resources/THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
       }
-    ]
+    ],
+    "artifactName": "Optic-${version}-${os}-${arch}.${ext}",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "license": "LICENSE"
+    }
+  },
+  "author": "Optic contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Karthickcjx/Optic.git"
+  },
+  "homepage": "https://github.com/Karthickcjx/Optic",
+  "bugs": {
+    "url": "https://github.com/Karthickcjx/Optic/issues"
   }
 }
