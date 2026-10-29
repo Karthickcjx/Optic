@@ -5,7 +5,7 @@ coverage/
 *.log
 .env*
 artifacts/
-
+docs/
 # Temporary files and credential-bearing kubeconfig backups
 *.tmp
 *.bak
