@@ -1,0 +1,30 @@
+import { _electron as electron, expect } from '@playwright/test';
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const root=await mkdtemp(join(tmpdir(),'optic-tools-'));
+const env={...process.env,WORKBENCH_KUBECONFIG:join(root,'absent')};delete env.ELECTRON_RUN_AS_NODE;delete env.ELECTRON_RENDERER_URL;
+let app;
+try {
+ app=await electron.launch({args:['.',`--user-data-dir=${root}`],env});
+ const page=await app.firstWindow();
+ await page.getByTitle('Preferences',{exact:true}).click();
+ await page.getByRole('button',{name:'External Tools',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'External Tools'})).toBeVisible();
+ await page.getByRole('radio',{name:/Custom/}).check();
+ await page.getByLabel('Executable path or command').fill(process.platform==='win32'?process.env.COMSPEC:'/bin/echo');
+ await page.getByLabel('Arguments (JSON array)').fill(process.platform==='win32'?'["/d","/c","echo OPTIC_TOOL_TEST_OK"]':'["OPTIC_TOOL_TEST_OK"]');
+ await page.getByRole('button',{name:'Save and launch'}).click();
+ await expect(page.locator('.external-tools-page [role=status]')).toContainText('Preferences saved');
+ await expect(page.locator('.xterm-screen')).toContainText('OPTIC_TOOL_TEST_OK',{timeout:15000});
+ await mkdir('artifacts/external-tools',{recursive:true});
+ await page.screenshot({path:'artifacts/external-tools/preferences.png'});
+ await app.close();
+ app=await electron.launch({args:['.',`--user-data-dir=${root}`],env});
+ const next=await app.firstWindow();await next.getByTitle('Preferences',{exact:true}).click();await next.getByRole('button',{name:'External Tools',exact:true}).click();
+ await expect(next.getByRole('radio',{name:/Custom/})).toBeChecked();
+ await next.getByRole('radio',{name:/No AI tool/}).check();
+ await next.getByRole('button',{name:'Save preferences'}).click();
+ await expect(next.getByRole('button',{name:'Save and launch'})).toBeDisabled();
+ console.log('PASS: external tool preferences, custom PTY launch, persisted selection, disabled tool state.');
+} finally {await app?.close();await rm(root,{recursive:true,force:true});}

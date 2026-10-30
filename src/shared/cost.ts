@@ -47,3 +47,10 @@ export function costCsv(report: CostReport, search = '') {
   const rows = report.allocations.filter(a => a.name.toLowerCase().includes(search.toLowerCase())).map(a => [report.source, report.currency, String(report.estimated), new Date(report.start).toISOString(), new Date(report.end).toISOString(), report.group, a.name, a.total, ...costComponents.map(k => a.components[k]), ...Object.keys(costUsageUnits).map(k => a.usage?.[k as keyof CostUsage]), a.network?.zone, a.network?.region, a.network?.internet, report.efficiency?.cpu, report.efficiency?.memory, report.coverage, report.nodePrices ? [...new Set(report.nodePrices.map(n => n.source))].join(' | ') : '', report.notes?.join(' | '), report.warnings.join(' | ')]);
   return [header, ...rows].map(row => row.map(cell).join(',')).join('\r\n');
 }
+
+// Report fields, rather than installation alone, determine usable accounting views.
+export function availableCostComponents(report: CostReport): CostComponent[] {
+  if (report.estimated) return ['cpu', 'memory'];
+  return costComponents.filter(key => report.allocations.some(a => a.components[key] !== undefined)
+    || report.buckets.some(b => b.allocations.some(a => a.components[key] !== undefined)));
+}

@@ -1,3 +1,4 @@
+import { externalToolLaunch } from './external-tools';
 import { utilityProcess, type WebContents } from 'electron';
 import { resolveLocalShell } from './terminal-profiles';
 import { CoreV1Api, RequestContext, HttpMethod } from '@kubernetes/client-node';
@@ -61,7 +62,7 @@ export class SessionService {
   }
   async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand?: string[]) {
     const { id } = options;
-    const local = options.pod ? undefined : resolveLocalShell(options.localShell);
+    const local = options.pod ? undefined : options.externalTool ? externalToolLaunch() : resolveLocalShell(options.localShell);
     let file = local?.file ?? '';
     let args: string[] = local?.args ?? [];
     const lease = options.clusterId ? this.clusters.cliConfig(options.clusterId) : undefined;

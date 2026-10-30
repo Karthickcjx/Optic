@@ -66,6 +66,10 @@ try {
   await expect(page.getByLabel('Cost time range')).toHaveValue('1');
   await expect(chart.locator('rect')).toHaveCount(1);
   await expect(dashboard.locator('.cost-summary')).toContainText('3.50');
+  await capture('00-dashboard-wide');
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await capture('00-dashboard-narrow');
+  await page.setViewportSize({ width: 1800, height: 1000 });
   await chart.hover();
   await expect(page.getByRole('tooltip')).toContainText('Cost: 3.50');
   await chart.focus();
@@ -160,6 +164,9 @@ try {
   await page.getByLabel('Include idle costs').check();
   await page.getByRole('button', { name: 'Apply range', exact: true }).click();
   await expect(dashboard).toContainText('Prometheus estimate');
+  await expect(page.getByLabel('Cost chart component').locator('option')).toHaveText(['CPU', 'Memory']);
+  await expect(page.getByLabel('Historical rate resource')).toHaveCount(0);
+  await expect(dashboard.locator('.cost-accounting-cards article')).toHaveCount(2);
   await expect(chart.locator('rect')).toHaveCount(287);
   await expect(dashboard).toContainText('50.0%');
   await dashboard.locator('.cost-node-prices summary').click();

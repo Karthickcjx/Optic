@@ -21,6 +21,7 @@ interface State {
 }
 const welcome: WorkspaceTab = { id: 'welcome', view: 'welcome', clusterId: '', namespace: '' };
 export function pageTitle(page: WorkspaceTab, clusters: Cluster[]) {
+  if (page.view === 'extensions') return 'Extensions';
   if (page.view === 'welcome') return 'Welcome';
   if (page.view === 'settings') return 'Preferences';
   const title = page.view === 'security-images' ? 'Security Images' : page.view === 'security-resources' ? 'Security Resources' : page.view === 'security-roles' ? 'Security Roles' : page.view === 'security' ? 'Security Overview' : page.view === 'cost' ? 'Cost' : page.view === 'applications' ? 'Applications' : page.view === 'helm-charts' ? 'Helm Charts' : page.view === 'helm-releases' ? 'Helm Releases' : page.view === 'cluster-settings' ? 'Cluster Settings' : page.view === 'overview' ? 'Cluster Overview' : page.view === 'custom' ? page.custom?.kind ?? 'Custom Resources' : catalog[page.view].label;
@@ -38,7 +39,7 @@ export const useStore = create<State>((set, get) => ({
   setNamespace: namespace => set(state => ({ namespace, selected: undefined, pages: state.pages.map(p => p.id === state.activePage ? { ...p, namespace } : p) })),
   setKind: kind => get().navigate(kind),
   navigate: (view, clusterId = get().clusterId, custom) => {
-    const global = ['welcome', 'settings'].includes(view); const context = global ? '' : clusterId;
+    const global = ['welcome', 'settings', 'extensions'].includes(view); const context = global ? '' : clusterId;
     const id = `${view}:${context}:${custom?.apiVersion ?? ''}:${custom?.plural ?? ''}`;
     const state = get(); const found = view === 'welcome' ? state.pages.find(p => p.view === 'welcome') : state.pages.find(p => p.id === id);
     const page = found ?? { id, view, clusterId: context, namespace: state.clusterSettings[context]?.accessibleNamespaces[0] ?? '', custom };

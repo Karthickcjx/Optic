@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "id": "optic.context-summary",
+  "name": "Context summary",
+  "version": "1.0.0",
+  "description": "Display the selected cluster and namespace without accessing cluster credentials.",
+  "permissions": ["context.read"],
+  "commands": [{"id": "show-context", "title": "Show context summary"}]
+}

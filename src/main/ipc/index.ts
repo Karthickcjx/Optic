@@ -1,4 +1,6 @@
+import { externalToolState, saveExternalTools } from '../external-tools';
 import { trivyInstallCommands } from '../../shared/security';
+import { Extensions } from '../extensions';
 import { localShellProfiles } from '../terminal-profiles';
 import { Imports } from '../imports';
 import { Deployments } from '../deploy';
@@ -25,6 +27,9 @@ import { AppError, fault } from '../errors';
 import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
+  const extensions = new Extensions(join(app.getPath('userData'), 'extensions'));
+  void app.whenReady().then(() => extensions.start());
+  app.on('before-quit', () => extensions.close());
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
   const securityReports = new SecurityReports(clusters);
   const costReports = new CostReports(clusters);
@@ -41,6 +46,18 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'tools:get': () => externalToolState(),
+    'tools:save': input => saveExternalTools(input),
+    'extensions:safe-mode': input => input.enabled === undefined ? extensions.safeMode() : extensions.setSafeMode(input.enabled),
+    'extensions:list': () => extensions.list(),
+    'extensions:pick': async (input, owner) => {
+      const result = await dialog.showOpenDialog({ title: 'Select Optic extension bundle', properties: [input.kind === 'folder' ? 'openDirectory' : 'openFile'], ...(input.kind === 'archive' ? { filters: [{ name: 'Extension package', extensions: ['tgz'] }] } : {}) });
+      return result.canceled ? undefined : extensions.review(result.filePaths[0], owner.id, input.kind === 'archive');
+    },
+    'extensions:install': (input, owner) => extensions.install(input.token, owner.id),
+    'extensions:enable': input => extensions.enable(input.id, input.enabled),
+    'extensions:remove': input => extensions.remove(input.id),
+    'extensions:run': input => extensions.run(input.id, input.command, { ...(input.clusterId ? { clusterName: clusters.get(input.clusterId, true).cluster.name } : {}), ...(input.namespace ? { namespace: input.namespace } : {}) }),
     'terminal:clipboard-read': async () => { const text = await clipboard.readText(); if (text.length > 60000) throw new AppError('CLIPBOARD_TOO_LARGE', 'Terminal paste is limited to 60,000 characters. Paste a smaller selection.'); return text; },
     'terminal:clipboard-write': input => clipboard.writeText(input.text),
     'terminal:profiles': () => localShellProfiles(),

@@ -79,7 +79,7 @@ export class CostReports {
   async read(query: CostQuery): Promise<CostReport> {
     const loaded = await this.load(query);
     const report = { ...loaded, warnings: [...loaded.warnings] };
-    if (this.clusters.settings(query.clusterId).costPriceHistory && this.clusters.settings(query.clusterId).costSource !== 'off') {
+    if (!report.estimated && this.clusters.settings(query.clusterId).costPriceHistory && this.clusters.settings(query.clusterId).costSource !== 'off') {
       try {
         report.priceHistory = await readPriceHistory(this.clusters, query);
         if (!report.priceHistory.length) report.warnings.push('No retained provider price metrics were found. Scrape OpenCost into the configured Prometheus to record price changes, including GCP rates.');
