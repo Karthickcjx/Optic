@@ -26,6 +26,7 @@ const server = createServer((req, res) => {
  const url = new URL(req.url, 'http://localhost'); res.setHeader('Content-Type', 'application/json');
  requests.push({ path: url.pathname, method: req.method });
  if (url.searchParams.has('watch')) { res.writeHead(200); res.flushHeaders(); return; }
+ if (url.pathname === '/apis/apps/v1/deployments') { res.end(JSON.stringify({ items: mode === 'uninstalled' ? [] : [{ metadata: { generation: 1 }, status: { availableReplicas: 1, observedGeneration: 1 } }] })); return; }
  if (url.pathname.startsWith('/apis/aquasecurity.github.io/')) {
   if (mode === 'missing') { res.writeHead(404); res.end('{}'); return; }
   if (mode === 'forbidden' && url.pathname.includes('/configauditreports')) { res.writeHead(403); res.end('{}'); return; }
@@ -158,6 +159,14 @@ try {
   await expect(dashboard.locator('.security-install-banner')).toHaveCount(0);
   await expect(dashboard).toContainText('scans may still be pending');
   await expect(dashboard).toContainText('No image vulnerability reports have been published.');
+  mode = 'uninstalled';
+  await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
+  await expect(dashboard).toContainText('Trivy Operator was not found.');
+  await expect(dashboard.locator('tbody tr')).toHaveCount(0);
+  await dashboard.getByLabel('Show retained reports').check();
+  await expect(dashboard.locator('tbody tr')).toHaveCount(1);
+  await dashboard.getByLabel('Show retained reports').uncheck();
+  await expect(dashboard.locator('tbody tr')).toHaveCount(0);
   mode = 'error';
   await page.getByRole('button', { name: 'Refresh reports', exact: true }).click();
   await expect(dashboard).toContainText('Request failed');

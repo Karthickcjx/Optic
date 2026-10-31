@@ -59,6 +59,14 @@ export class SecurityReports {
   async read(scope: SecurityScope): Promise<SecuritySnapshot> {
     const config = this.clusters.get(scope.clusterId).config;
     const signal = AbortSignal.timeout(45000);
+    const operatorStatus = (async (): Promise<NonNullable<SecuritySnapshot['operator']>> => {
+      try {
+        const result = await kubeJson(config, '/apis/apps/v1/deployments?labelSelector=app.kubernetes.io%2Fname%3Dtrivy-operator', { signal });
+        if (!Array.isArray(result?.items) || result.metadata?.continue) return 'unknown';
+        if (!result.items.length) return 'absent';
+        return result.items.some((item: any) => !item.metadata?.deletionTimestamp && item.status?.availableReplicas > 0 && item.status?.observedGeneration >= item.metadata?.generation) ? 'ready' : 'unavailable';
+      } catch { return 'unknown'; }
+    })();
     const sources = await Promise.all(securityTypes.map(async (type): Promise<SecuritySource> => {
       const reports: SecurityReport[] = [];
       try {
@@ -86,7 +94,7 @@ export class SecurityReports {
           message: code === 404 ? 'Report API unavailable. Install or enable Trivy Operator for this report type.' : code === 401 || code === 403 ? 'Access denied. Grant list/get access to this report type, or choose a permitted namespace.' : fault(error).message };
       }
     }));
-    return { fetchedAt: Date.now(), sources };
+    return { fetchedAt: Date.now(), sources, operator: await operatorStatus };
   }
   async detail(target: SecurityTarget): Promise<SecurityDetail> {
     const config = this.clusters.get(target.clusterId).config;

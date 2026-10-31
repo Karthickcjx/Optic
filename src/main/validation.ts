@@ -1,3 +1,4 @@
+import { awsLoginSchema, eksScopeSchema, eksImportSchema } from '../shared/eks';
 import { externalToolSchema } from '../shared/external-tools';
 import { securityTypes, clusterSecurityType } from '../shared/security';
 import { localShellIds } from '../shared/terminal';
@@ -25,6 +26,11 @@ const version = z.string().regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.+-]+)
 const helmTarget = z.object({ clusterId: text, namespace, release: helmName });
 const helmPlan = helmTarget.extend({ action: z.enum(['install', 'upgrade']), repository: helmName, chart, version, values: z.string().max(2_000_000) });
 export const schemas: Record<keyof Requests, z.ZodType> = {
+  'eks:identity': eksScopeSchema,
+  'eks:region': z.object({ profile: eksScopeSchema.shape.profile }).strict(),
+  'eks:profiles': z.undefined(),
+  'eks:list': eksScopeSchema.extend({ nextToken: z.string().min(1).max(8192).optional() }),
+  'eks:import': eksImportSchema,
   'tools:get': z.undefined(),
   'tools:save': externalToolSchema,
   'extensions:safe-mode': z.object({ enabled: z.boolean().optional() }).strict(),
@@ -90,7 +96,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),
   'cost:export': z.object({ text: z.string().max(16_000_000), format: z.enum(['csv', 'json']) }),
   'logs:export': z.object({ text: z.string().max(8_000_000) }),
-  'terminal:open': z.object({ id, externalTool: z.boolean().optional(), localShell: z.enum(localShellIds).optional(), clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), shell: z.string().refine(validContainerShell).optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.externalTool || (!v.pod && !v.clusterId && !v.localShell && !v.shell), 'External tools use local sessions only').refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace').refine(v => !v.shell || !!v.pod, 'Shell selection applies to pod terminals').refine(v => !v.localShell || !v.pod, 'Local profiles cannot be used for pod terminals'),
+  'terminal:open': z.object({ id, awsLogin: awsLoginSchema.optional(), externalTool: z.boolean().optional(), localShell: z.enum(localShellIds).optional(), clusterId: text.optional(), namespace: name.optional(), pod: name.optional(), container: name.optional(), shell: z.string().refine(validContainerShell).optional(), cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }).refine(v => !v.awsLogin || (!v.pod && !v.clusterId && !v.localShell && !v.shell && !v.externalTool && !v.container), 'AWS sign-in requires a dedicated local session').refine(v => !v.externalTool || (!v.pod && !v.clusterId && !v.localShell && !v.shell), 'External tools use local sessions only').refine(v => !v.pod || (v.clusterId && v.namespace), 'Pod terminals require cluster and namespace').refine(v => !v.shell || !!v.pod, 'Shell selection applies to pod terminals').refine(v => !v.localShell || !v.pod, 'Local profiles cannot be used for pod terminals'),
   'terminal:write': z.object({ id, data: z.string().max(65536) }),
   'terminal:resize': z.object({ id, cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(200) }),
   'stream:ack': z.object({ id, seq: z.number().int().nonnegative() }), 'stream:close': z.object({ id })

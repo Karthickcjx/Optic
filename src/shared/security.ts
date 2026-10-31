@@ -22,7 +22,7 @@ export interface SecuritySource {
   type: SecurityType; state: 'ready' | 'missing' | 'forbidden' | 'error';
   message?: string; truncated: boolean; reports: SecurityReport[];
 }
-export interface SecuritySnapshot { fetchedAt: number; sources: SecuritySource[] }
+export interface SecuritySnapshot { fetchedAt: number; sources: SecuritySource[]; operator?: 'ready' | 'unavailable' | 'absent' | 'unknown' }
 
 export type SecurityPage = 'overview' | 'images' | 'resources' | 'roles';
 export const securityPageTypes: Record<SecurityPage, readonly SecurityType[]> = {

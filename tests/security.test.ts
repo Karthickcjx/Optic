@@ -89,3 +89,15 @@ it('redacts secret matches, file paths and descriptions from exposed-secret deta
   expect(result.counts.CRITICAL).toBe(1); expect(result.findings[0].status).toBe('secret');
   expect(JSON.stringify(result)).not.toContain('TOP_SECRET'); expect(JSON.stringify(result)).not.toContain('PRIVATE_FILE');
 });
+
+it('distinguishes retained reports from a removed or unreadable operator', async () => {
+  vi.mocked(kubeJson).mockImplementation(async (_config, path) => path.startsWith('/apis/apps/') ? { items: [] } : { items: [raw()] });
+  const result = await service.read({ clusterId: 'cluster' });
+  expect(result.operator).toBe('absent');
+  expect(result.sources[0].reports).toHaveLength(1);
+  vi.mocked(kubeJson).mockImplementation(async (_config, path) => {
+    if (path.startsWith('/apis/apps/')) throw Object.assign(new Error('denied'), { statusCode: 403 });
+    return { items: [raw()] };
+  });
+  expect((await service.read({ clusterId: 'cluster' })).operator).toBe('unknown');
+});

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ArrowRight, ClipboardPaste, FolderOpen, ShieldCheck, X } from 'lucide-react';
 
-export function KubeconfigSourceDialog({ onClose, onFiles, onPaste }: { onClose: () => void; onFiles: () => void; onPaste: () => void }) {
+export function KubeconfigSourceDialog({ onClose, onFiles, onPaste, onEks }: { onClose: () => void; onFiles: () => void; onPaste: () => void; onEks: () => void }) {
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -24,6 +24,7 @@ export function KubeconfigSourceDialog({ onClose, onFiles, onPaste }: { onClose:
       <button className="kubeconfig-source-card" aria-label="Add kubeconfig from filesystem" onClick={onFiles}><span className="kubeconfig-source-icon"><FolderOpen size={22}/></span><strong>From a file</strong><span className="kubeconfig-source-description">Select one or more kubeconfig files from your computer.</span><span className="kubeconfig-source-action">Browse files<ArrowRight size={15}/></span></button>
       <button className="kubeconfig-source-card" aria-label="Add kubeconfig from clipboard" onClick={onPaste}><span className="kubeconfig-source-icon"><ClipboardPaste size={22}/></span><strong>Paste kubeconfig</strong><span className="kubeconfig-source-description">Paste your kubeconfig YAML into the editor to add its contexts.</span><span className="kubeconfig-source-action">Open editor<ArrowRight size={15}/></span></button>
     </div>
+    <button className="eks-discover-entry" onClick={onEks}>Discover AWS EKS clusters<ArrowRight size={15}/></button>
     <p className="kubeconfig-source-hint">New contexts appear alongside your existing clusters.</p>
     <div className="kubeconfig-source-trust"><ShieldCheck size={16}/><p>Use trusted kubeconfigs. Authentication plugins can run commands on your computer.</p></div>
     <footer><button onClick={onClose}>Cancel</button></footer>

@@ -36,6 +36,8 @@ try {
  await api(page,'extensions:enable',{id:'test.sandbox',enabled:true});
  await assert.rejects(()=>api(page,'extensions:run',{id:'test.sandbox',command:'invalid'}),/invalid data/);
  await api(page,'extensions:remove',{id:'test.sandbox'});
+ await page.getByRole('button',{name:'Refresh extensions',exact:true}).click();
+ await expect(page.locator('.extension-card').filter({hasText:'test.sandbox'})).toHaveCount(0);
  await page.getByRole('switch',{name:'Safe Mode'}).check();
  await expect(page.locator('.extension-state')).toHaveText('disabled');
  await app.close();page=await launch();

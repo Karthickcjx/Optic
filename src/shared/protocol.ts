@@ -17,7 +17,7 @@ export interface Cluster { id: string; name: string; server: string; source: str
 export interface Scope { clusterId: string; kind: ResourceKind; namespace?: string; custom?: CustomType }
 export interface Target extends Scope { name: string }
 export interface PodTarget { clusterId: string; namespace: string; pod: string; container?: string }
-export interface TerminalOptions { externalTool?: boolean; node?: string; clusterId?: string; pod?: string; namespace?: string; container?: string; shell?: string; localShell?: import('./terminal').LocalShellId; cols: number; rows: number }
+export interface TerminalOptions { awsLogin?: import('./eks').AwsLogin; externalTool?: boolean; node?: string; clusterId?: string; pod?: string; namespace?: string; container?: string; shell?: string; localShell?: import('./terminal').LocalShellId; cols: number; rows: number }
 export interface Fault { code: string; message: string; retryable: boolean }
 export type Result<T> = { ok: true; data: T } | { ok: false; error: Fault };
 export type StreamEvent =
@@ -26,6 +26,11 @@ export type StreamEvent =
   | { id: string; type: 'error'; error: Fault }
   | { id: string; type: 'end'; exitCode?: number; reason?: 'closed' };
 export interface Requests {
+  'eks:identity': { input: import('./eks').EksScope; output: import('./eks').EksIdentity };
+  'eks:region': { input: { profile: string }; output: string | undefined };
+  'eks:profiles': { input: undefined; output: string[] };
+  'eks:list': { input: import('./eks').EksScope & { nextToken?: string }; output: import('./eks').EksPage };
+  'eks:import': { input: import('./eks').EksScope & { name: string; roleArn?: string }; output: { clusters: Cluster[]; warnings: string[] } };
   'tools:get': { input: undefined; output: import('./external-tools').ExternalToolState };
   'tools:save': { input: import('./external-tools').ExternalToolSettings; output: import('./external-tools').ExternalToolState };
   'extensions:safe-mode': { input: { enabled?: boolean }; output: boolean };
@@ -121,3 +126,7 @@ export interface DesktopAPI {
 }
 
 channels.push('tools:get', 'tools:save');
+
+channels.push('eks:profiles', 'eks:list', 'eks:import');
+
+channels.push('eks:identity', 'eks:region');

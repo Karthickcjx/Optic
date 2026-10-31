@@ -1,3 +1,4 @@
+import { EksDiscovery } from '../eks';
 import { externalToolState, saveExternalTools } from '../external-tools';
 import { trivyInstallCommands } from '../../shared/security';
 import { Extensions } from '../extensions';
@@ -27,6 +28,7 @@ import { AppError, fault } from '../errors';
 import { ForwardService } from '../forward';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
+  const eks = new EksDiscovery();
   const extensions = new Extensions(join(app.getPath('userData'), 'extensions'));
   void app.whenReady().then(() => extensions.start());
   app.on('before-quit', () => extensions.close());
@@ -46,6 +48,11 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   const forwards = new ForwardService(clusters, streams);
   type Handlers = { [K in keyof Requests]: (input: Requests[K]['input'], owner: WebContents) => Promise<Requests[K]['output']> | Requests[K]['output'] };
   const handlers: Handlers = {
+    'eks:identity': input => eks.identity(input),
+    'eks:region': input => eks.defaultRegion(input.profile),
+    'eks:profiles': () => eks.profiles(),
+    'eks:list': input => eks.list(input),
+    'eks:import': async input => clusters.importClipboard(await eks.kubeconfig(input)),
     'tools:get': () => externalToolState(),
     'tools:save': input => saveExternalTools(input),
     'extensions:safe-mode': input => input.enabled === undefined ? extensions.safeMode() : extensions.setSafeMode(input.enabled),

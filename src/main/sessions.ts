@@ -1,3 +1,4 @@
+import { awsLoginCommand } from './eks';
 import { externalToolLaunch } from './external-tools';
 import { utilityProcess, type WebContents } from 'electron';
 import { resolveLocalShell } from './terminal-profiles';
@@ -62,7 +63,7 @@ export class SessionService {
   }
   async terminal(owner: WebContents, options: Requests['terminal:open']['input'], onClosed?: () => void, remoteCommand?: string[]) {
     const { id } = options;
-    const local = options.pod ? undefined : options.externalTool ? externalToolLaunch() : resolveLocalShell(options.localShell);
+    const local = options.pod ? undefined : options.awsLogin ? awsLoginCommand(options.awsLogin) : options.externalTool ? externalToolLaunch() : resolveLocalShell(options.localShell);
     let file = local?.file ?? '';
     let args: string[] = local?.args ?? [];
     const lease = options.clusterId ? this.clusters.cliConfig(options.clusterId) : undefined;

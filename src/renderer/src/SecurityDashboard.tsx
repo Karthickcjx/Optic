@@ -44,6 +44,8 @@ export function SecurityDashboard({ page: mode = 'overview' }: { page?: Security
   const [search, setSearch] = useState(''), [severity, setSeverity] = useState<Severity | 'all'>('all'), [page, setPage] = useState(0);
   const [selected, setSelected] = useState<SecurityReport>(), [related, setRelated] = useState<SecurityReport[]>([]);
   const [namespaceInput, setNamespaceInput] = useState('');
+  const [showRetained, setShowRetained] = useState(false);
+  useEffect(() => { setShowRetained(false); setSelected(undefined); }, [clusterId, namespace, data?.operator]);
   useEffect(() => { setData(undefined); setSelected(undefined); setPage(0); }, [clusterId, namespace]);
   useEffect(() => {
     let active = true, running = false;
@@ -59,10 +61,12 @@ export function SecurityDashboard({ page: mode = 'overview' }: { page?: Security
     return () => { active = false; clearInterval(timer); };
   }, [clusterId, namespace, revision, automatic]);
   const sources = data?.sources.filter(s => securityPageTypes[mode].includes(s.type)) ?? [];
-  const rows = securityRows(mode, sources.flatMap(s => s.reports), pods.items, [...roles.items, ...clusterRoles.items]);
+  const scannerAbsent = data?.operator === 'absent';
+  const hideRetained = scannerAbsent && !showRetained;
+  const rows = securityRows(mode, hideRetained ? [] : sources.flatMap(s => s.reports), hideRetained ? [] : pods.items, hideRetained ? [] : [...roles.items, ...clusterRoles.items]);
   const filtered = rows.filter(r => (severity === 'all' || r.counts[severity] > 0) && `${r.name} ${r.namespace} ${r.kind} ${r.reports.map(p => p.name + ' ' + p.container).join(' ')}`.toLowerCase().includes(search.toLowerCase()));
   const secretReports = filtered.map(r => r.reports.find(p => p.type === 'exposedsecretreports')).filter((r): r is SecurityReport => !!r);
-  const stats = securityStatistics(filtered), known = !!data && sources.some(s => s.state === 'ready');
+  const stats = securityStatistics(filtered), known = !!data && !hideRetained && sources.some(s => s.state === 'ready');
   const tableRows = (mode === 'overview' ? filtered.filter(r => r.counts.CRITICAL > 0) : [...filtered]).sort((a, b) => mode === 'overview' ? (Date.parse(b.updated ?? '') || 0) - (Date.parse(a.updated ?? '') || 0) || b.counts.CRITICAL - a.counts.CRITICAL : b.counts.CRITICAL - a.counts.CRITICAL || b.counts.HIGH - a.counts.HIGH || a.name.localeCompare(b.name));
   const currentPage = Math.min(page, Math.max(0, Math.ceil(tableRows.length / 50) - 1));
   const missing = !!data && data.sources.every(s => s.state === 'missing');
@@ -71,6 +75,9 @@ export function SecurityDashboard({ page: mode = 'overview' }: { page?: Security
   const open = (row: SecurityRow) => { const report = row.reports.find(r => r.type === 'vulnerabilityreports') ?? row.reports[0]; if (report) { setRelated(row.reports); setSelected(report); } };
   const badges = (row: SecurityRow) => !row.scanned ? <span className="muted">Unknown</span> : <span className="security-badges">{severities.filter(s => row.counts[s] > 0).map(s => <span key={s} className={`severity-${s.toLowerCase()}`} title={s}>{s}: {row.counts[s]}</span>)}{!findingCount(row.counts) && 'None reported'}</span>;
   return <section className="security-page security-center">
+    {scannerAbsent && <div className="security-install-banner" role="status"><span><strong>Trivy Operator was not found.</strong> Existing reports can remain after uninstall; they are retained history, not active scans.</span><label><input type="checkbox" checked={showRetained} onChange={e => { setShowRetained(e.target.checked); setPage(0); setSelected(undefined); }}/>Show retained reports</label><button onClick={() => setInstall(true)}>Install instructions</button></div>}
+    {data?.operator === 'unavailable' && <p className="inline-error" role="status">Trivy Operator is not available. Displayed reports are previous scans and may be stale.</p>}
+    {data?.operator === 'unknown' && <p className="inline-error" role="status">Scanner status could not be verified. Report availability does not confirm that Trivy is running.</p>}
     {missing && <div className="security-install-banner"><span>Enable cluster security reports by installing <strong>Trivy Operator</strong>.</span><button onClick={() => setInstall(true)}>Open install instructions</button></div>}
     <header><h1><Shield size={22}/>Security {pages[mode]}</h1><button onClick={() => setInstall(true)}>Scanner setup</button></header>
     <div className="security-toolbar"><label>Namespace<select aria-label="Security namespace" value={namespace} onChange={e => store.setNamespace(e.target.value)}>{!allowed.length && <option value="">All namespaces</option>}{[...new Set([...allowed, ...namespaces.items.map(n => n.metadata.name!), ...(namespace ? [namespace] : [])])].map(n => <option key={n}>{n}</option>)}</select></label>

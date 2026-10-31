@@ -1,6 +1,13 @@
-# Optic 0.1.0-beta.1
+# Optic 0.1.0-beta.2
 
-First public beta of Optic, a Kubernetes desktop workspace.
+Public beta of Optic, a Kubernetes desktop workspace.
+
+## Changes in this release
+
+- AWS EKS discovery using local AWS CLI profiles, identity verification, and terminal-assisted SSO setup.
+- Cleaner AWS navigation without an automatic default-profile sidebar entry.
+- Security Center detects an absent Trivy Operator and hides retained reports until explicitly requested.
+- Isolated extensions, external CLI tools, and adaptive cost-provider views.
 
 ## Included
 
@@ -22,7 +29,7 @@ First public beta of Optic, a Kubernetes desktop workspace.
 
 ## Installation
 
-Download the Windows x64 installer and SHA256SUMS.txt from the matching GitHub release. In PowerShell, run `Get-FileHash .\Optic-0.1.0-beta.1-win-x64.exe -Algorithm SHA256` and compare the result with the checksum file, then run the installer if permitted by your system policy.
+Download the Windows x64 installer and SHA256SUMS.txt from the matching GitHub release. In PowerShell, run `Get-FileHash .\Optic-0.1.0-beta.2-win-x64.exe -Algorithm SHA256` and compare the result with the checksum file, then run the installer if permitted by your system policy.
 
 To run from source, use Node.js 24, `npm ci`, then `npm run dev`. Source archives alone do not include dependencies or built binaries.
 
