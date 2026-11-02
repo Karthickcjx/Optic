@@ -35,6 +35,8 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   void app.whenReady().then(() => extensions.start());
   app.on('before-quit', () => extensions.close());
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  // Remove session kubeconfigs and staging folders left behind by a crash (only ones that cannot be in use).
+  try { const removed = clusters.sweepStaleFiles(); if (removed) console.info(`Optic removed ${removed} stale temporary credential folder(s).`); } catch { /* best effort */ }
   // MCP approvals live beside the imported-kubeconfig list; they hold context identities only, never credentials.
   const mcpAccessFile = accessPath(app.getPath('userData')), mcpLaunch = { command: process.execPath, args: app.isPackaged ? ['--mcp'] : [app.getAppPath(), '--mcp'] };
   const securityReports = new SecurityReports(clusters);

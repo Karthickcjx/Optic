@@ -436,6 +436,8 @@ try {
   await page.getByRole('menuitem', { name: 'Remove from Kubeconfig', exact: true }).click();
   await page.getByRole('button', { name: 'Remove context', exact: true }).click();
   await expect(page.locator('.backup-path')).toBeVisible();
+  // Backups go to Optic's private profile folder, not next to the user's kubeconfig.
+  assert.ok((await page.locator('.backup-path').textContent()).startsWith(join(temp, 'profile', 'kubeconfig-backups')));
   await page.getByTitle('Close cluster settings').click();
   await expect(page.getByText('No contexts found.', { exact: false })).toBeVisible();
   await page.getByTitle('Add kubeconfig', { exact: true }).click();

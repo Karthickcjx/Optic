@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { resolve, dirname, join, isAbsolute } from 'node:path';
 import { kubeJson } from './kube-http';
 import { kubeconfigChain, mergeKubeconfigs } from './kubeconfig-merge';
+import { createSessionDirectory, sweepStaleCredentialFiles, writeKubeconfigBackup } from './credential-files';
 import type { Cluster } from '../shared/protocol';
 import { AppError } from './errors';
 
@@ -99,10 +100,13 @@ export class ClusterManager {
     const { config, cluster } = this.get(id); const settings = this.settings(id);
     const isolated = new KubeConfig(), user = config.getCurrentUser();
     isolated.loadFromOptions({ clusters: [config.getCurrentCluster()!], users: user ? [user] : [], contexts: [{ ...config.getContextObject(cluster.name)!, namespace: settings.defaultNamespace }], currentContext: cluster.name });
-    const directory = mkdtempSync(join(tmpdir(), 'optic-session-')); const path = join(directory, 'config');
+    // Session kubeconfigs live in Optic's profile (owner-only) and record their process, so a crash can be cleaned up later.
+    const directory = this.settingsPath ? createSessionDirectory(join(dirname(this.settingsPath), 'sessions')) : mkdtempSync(join(tmpdir(), 'optic-session-')); const path = join(directory, 'config');
     try { writeFileSync(path, isolated.exportConfig(), { mode: 0o600 }); } catch (error) { rmSync(directory, { recursive: true, force: true }); throw error; }
     return { path, cleanup: () => { try { rmSync(directory, { recursive: true, force: true, maxRetries: 3 }); } catch { console.warn('Optic could not remove a temporary session kubeconfig.'); } }, settings };
   }
+  // Startup cleanup of credential files left by crashed or killed sessions; never touches files that may be in use.
+  sweepStaleFiles() { return sweepStaleCredentialFiles({ sessionsRoot: this.settingsPath ? join(dirname(this.settingsPath), 'sessions') : undefined, tempRoot: tmpdir() }).length; }
   removeContext(id: string) {
     const { cluster } = this.get(id, true);
     const path = realpathSync(cluster.source), original = readFileSync(path, 'utf8');
@@ -113,9 +117,11 @@ export class ClusterManager {
     if (index < 0) throw new AppError('CONFLICT', 'Context changed on disk. Reload the cluster list.');
     contexts.delete(index);
     if (document.get('current-context') === cluster.name) document.set('current-context', '');
-    const backup = `${path}.workbench-${randomUUID()}.bak`, temporary = `${path}.${randomUUID()}.tmp`;
-    // Preserve shared users/clusters and YAML comments. Backups contain credentials like the original file.
-    writeFileSync(backup, original, { mode: 0o600, flag: 'wx' });
+    const temporary = `${path}.${randomUUID()}.tmp`;
+    // Preserve shared users/clusters and YAML comments. Backups contain credentials like the original file, so they go to
+    // Optic's owner-only profile (newest five per kubeconfig); without a profile (tests) they stay beside the file.
+    const backup = this.settingsPath ? writeKubeconfigBackup(join(dirname(this.settingsPath), 'kubeconfig-backups'), path, original) : `${path}.workbench-${randomUUID()}.bak`;
+    if (!this.settingsPath) writeFileSync(backup, original, { mode: 0o600, flag: 'wx' });
     try {
       writeFileSync(temporary, document.toString(), { mode: statSync(path).mode & 0o777, flag: 'wx' });
       if (readFileSync(path, 'utf8') !== original) throw new AppError('CONFLICT', 'Kubeconfig changed during editing. No changes were applied.');
