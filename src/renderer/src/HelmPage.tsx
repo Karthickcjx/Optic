@@ -53,7 +53,7 @@ export function HelmPage({ mode }: { mode: 'charts' | 'releases' }) {
       label = `${operation.kind === 'rollback' ? 'Rollback' : 'Uninstall'} ${selected.name}`;
       namespace = selected.namespace;
     } else return;
-    if (!startHelmOperation(clusterId, `${label} ? ${clusterName} / ${namespace}`, run)) {
+    if (!startHelmOperation(clusterId, `${label} · ${clusterName} / ${namespace}`, run)) {
       setError('A Helm operation is already running in this cluster. Follow its notification for status.');
       setConfirmation(undefined);
       return;
