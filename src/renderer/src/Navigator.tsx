@@ -5,10 +5,11 @@ import { catalog, type BuiltinKind } from '../../shared/catalog';
 import { ClusterMenu } from './ClusterMenu';
 import type { Cluster } from '../../shared/protocol';
 import { useStore } from './store';
+import { useShallow } from 'zustand/react/shallow';
 const groupIcons = { Workloads: Box, Config: FileCode2, Network, Storage: Database, 'Access Control': Shield };
 export function Navigator({ onImport, onReload, onEks }: { onEks: (profile: string) => void; onImport: () => void; onReload: () => void }) {
   const [menu, setMenu] = useState<{ cluster: Cluster; x: number; y: number }>();
-  const state = useStore(); const [filter, setFilter] = useState(''); const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const state = useStore(useShallow(s => ({ clusterId: s.clusterId, view: s.view, navigate: s.navigate, preferences: s.preferences, clusters: s.clusters, selectCluster: s.selectCluster }))); const [filter, setFilter] = useState(''); const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setCollapsed(s => ({ ...s, [key]: !s[key] }));
   // Section headings collapse like the groups below them; a Navigator search keeps every section open.
   const clustersOpen = !collapsed['@clusters'] || !!filter, localOpen = !collapsed['@local'] || !!filter;

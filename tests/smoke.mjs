@@ -125,11 +125,12 @@ try {
   await expect(page.getByRole('heading', { name: 'api-gateway' })).toBeVisible();
   await capture('05-pod-details');
   if (captureDir) {
-    const unhealthy = { ...pod, status: { phase: 'Pending', conditions: [{ type: 'Ready', status: 'False', reason: 'ContainersNotReady', message: 'Container image could not be pulled.' }], containerStatuses: [{ name: 'server', ready: false, restartCount: 0, state: { waiting: { reason: 'ImagePullBackOff', message: 'Unable to pull example/gateway:missing' } } }] } };
+    // Like a real API server, each modification carries a new resourceVersion (table rows re-render when it changes).
+    const unhealthy = { ...pod, metadata: { ...pod.metadata, resourceVersion: '11' }, status: { phase: 'Pending', conditions: [{ type: 'Ready', status: 'False', reason: 'ContainersNotReady', message: 'Container image could not be pulled.' }], containerStatuses: [{ name: 'server', ready: false, restartCount: 0, state: { waiting: { reason: 'ImagePullBackOff', message: 'Unable to pull example/gateway:missing' } } }] } };
     for (const response of watchers) response.write(JSON.stringify({ type: 'MODIFIED', object: unhealthy }) + '\n');
     await expect(page.locator('tbody')).toContainText('ImagePullBackOff');
     await capture('05b-resource-error-highlighting');
-    for (const response of watchers) response.write(JSON.stringify({ type: 'MODIFIED', object: pod }) + '\n');
+    for (const response of watchers) response.write(JSON.stringify({ type: 'MODIFIED', object: { ...pod, metadata: { ...pod.metadata, resourceVersion: '12' } } }) + '\n');
     await expect(page.locator('tbody')).toContainText('Running');
   }
 
@@ -222,7 +223,7 @@ try {
   assert.equal(result.opened.ok, true, JSON.stringify(result)); assert.match(result.text, /[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/);
   await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();
   await mkdir('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/dashboard.png' });
-  for (const response of watchers) response.write(`${JSON.stringify({ type: 'MODIFIED', object: { ...pod, status: { phase: 'Pending' } } })}\n`);
+  for (const response of watchers) response.write(`${JSON.stringify({ type: 'MODIFIED', object: { ...pod, metadata: { ...pod.metadata, resourceVersion: '13' }, status: { phase: 'Pending' } } })}\n`);
   await expect(page.locator('tbody')).toContainText('Pending'); assert.deepEqual(errors, []);
   const listsBefore = requests.filter(r => r.path.endsWith('/pods')).length;
   for (const response of watchers) response.write(`${JSON.stringify({ type: 'ERROR', object: { code: 410, reason: 'Expired' } })}\n`);

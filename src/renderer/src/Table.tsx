@@ -1,12 +1,13 @@
 import { LogSourceDialog } from './LogSourceDialog';
 import { resourceSeverity } from '../../shared/severity';
-import { useMemo, useState, type ReactNode } from 'react';
-import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type RowSelectionState } from '@tanstack/react-table';
+import { memo, useMemo, useState, type ReactNode } from 'react';
+import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type Row, type SortingState, type RowSelectionState } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Search, Trash2 } from 'lucide-react';
 import type { Resource, ResourceKind } from '../../shared/protocol';
 import { resourceStatus } from '../../shared/status';
 import { request } from './api';
 import { useStore } from './store';
+import { useShallow } from 'zustand/react/shallow';
 export function Status({ resource }: { resource: Resource }) {
   const status = resourceStatus(resource);
   const tone = resourceSeverity(resource) === 'error' || /Crash|Error|Failed|NotReady|BackOff/.test(status) ? 'bad' : resourceSeverity(resource) === 'warning' || /Pending|ContainerCreating|Terminating|Suspended/.test(status) ? 'pending' : 'good';
@@ -17,10 +18,16 @@ export function age(value?: string) {
   const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000));
   return minutes < 60 ? `${minutes}m` : minutes < 1440 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 1440)}d`;
 }
+// A row re-renders only when its object version, selection, checkbox, columns or the minute (for Age) changes; a watch
+// update to one object then re-renders one row instead of every visible cell. Rows without a resourceVersion compare by identity.
+const ResourceRow = memo(function ResourceRow({ row, selected, onSelect }: { row: Row<Resource>; selected: boolean; checked: boolean; columns: unknown; minute: number; onSelect: (resource: Resource) => void }) {
+  return <tr tabIndex={0} className={`resource-row severity-${resourceSeverity(row.original)} ${selected ? 'selected' : ''}`} onClick={() => onSelect(row.original)} onKeyDown={e => { if (e.target === e.currentTarget && e.key === 'Enter') onSelect(row.original); }}>{row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>;
+}, (a, b) => a.selected === b.selected && a.checked === b.checked && a.columns === b.columns && a.minute === b.minute && a.onSelect === b.onSelect
+  && (a.row.original.metadata.resourceVersion && a.row.original.metadata.uid ? a.row.original.metadata.uid === b.row.original.metadata.uid && a.row.original.metadata.resourceVersion === b.row.original.metadata.resourceVersion : a.row.original === b.row.original));
 export function ResourceTable({ items, loading, onSelect, selectedId, kind, label, controls, actions }: { items: Resource[]; loading: boolean; onSelect: (resource: Resource) => void; selectedId?: string; kind: ResourceKind; label: string; controls?: ReactNode; actions?: ReactNode }) {
   const [search, setSearch] = useState(''), [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]), [selection, setSelection] = useState<RowSelectionState>({});
   const [logPicker, setLogPicker] = useState(false);
-  const [confirm, setConfirm] = useState(false), [busy, setBusy] = useState(false); const store = useStore();
+  const [confirm, setConfirm] = useState(false), [busy, setBusy] = useState(false); const store = useStore(useShallow(s => ({ clusterId: s.clusterId, notify: s.notify, custom: s.custom, clusters: s.clusters })));
   const columns = useMemo<ColumnDef<Resource>[]>(() => {
     const textColumn = (id: string, header: string, accessorFn: (r: Resource) => unknown): ColumnDef<Resource> => ({ id, header, accessorFn, cell: ctx => String(ctx.getValue() ?? '—') });
     const result: ColumnDef<Resource>[] = [
@@ -53,6 +60,7 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
     result.push(ageColumn('age', 'Age', r => r.metadata.creationTimestamp), { id: 'status', header: 'Status', accessorFn: resourceStatus, cell: ctx => <Status resource={ctx.row.original}/> });
     return result;
   }, [kind]);
+  const minute = Math.floor(Date.now() / 60000);
   const table = useReactTable({ data: items, columns, getRowId: r => r.metadata.uid ?? `${r.metadata.namespace}/${r.metadata.name}`, state: { globalFilter: search, sorting, rowSelection: selection }, onGlobalFilterChange: setSearch, onSortingChange: setSorting, onRowSelectionChange: setSelection, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: 50 } } });
   const selected = table.getSelectedRowModel().rows;
   const removeSelected = async () => {
@@ -63,7 +71,7 @@ export function ResourceTable({ items, loading, onSelect, selectedId, kind, labe
   };
   const exportRows = () => { const blob = new Blob([JSON.stringify(table.getFilteredRowModel().rows.map(r => r.original), null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${kind}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   return <><div className="table-tools">{controls}<label className="search"><Search size={13}/><input aria-label={`Search ${label}`} placeholder={`Search ${label}…`} value={search} onChange={e => setSearch(e.target.value)}/></label><button title="Export visible resources" onClick={exportRows}><Download size={15}/></button><span>{table.getFilteredRowModel().rows.length} items</span><div className="toolbar-spacer"/>{kind === 'pods' && !!selected.length && <button onClick={() => setLogPicker(true)}>Logs for selected Pods</button>}{!!selected.length && <button className="danger" onClick={() => setConfirm(true)}><Trash2 size={13}/>{selected.length} selected</button>}{actions}</div>
-    <div className="table-scroll"><table><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>{group.headers.map(header => <th key={header.id}>{header.id === 'select' ? flexRender(header.column.columnDef.header, header.getContext()) : <button onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? <ArrowUp size={11}/> : header.column.getIsSorted() === 'desc' ? <ArrowDown size={11}/> : null}</button>}</th>)}</tr>)}</thead><tbody>{table.getRowModel().rows.map(row => <tr key={row.id} tabIndex={0} className={`resource-row severity-${resourceSeverity(row.original)} ${row.original.metadata.uid === selectedId ? 'selected' : ''}`} onClick={() => onSelect(row.original)} onKeyDown={e => { if (e.target === e.currentTarget && e.key === 'Enter') onSelect(row.original); }}>{row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}</tbody></table>{!table.getRowModel().rows.length && <div className="empty compact"><h3>{loading ? `Loading ${label.toLowerCase()}…` : search ? 'No matching resources' : 'No resources found'}</h3><p>{loading ? 'Waiting for the Kubernetes API' : 'Choose another namespace or adjust your filters.'}</p></div>}</div>
+    <div className="table-scroll"><table><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>{group.headers.map(header => <th key={header.id}>{header.id === 'select' ? flexRender(header.column.columnDef.header, header.getContext()) : <button onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? <ArrowUp size={11}/> : header.column.getIsSorted() === 'desc' ? <ArrowDown size={11}/> : null}</button>}</th>)}</tr>)}</thead><tbody>{table.getRowModel().rows.map(row => <ResourceRow key={row.id} row={row} selected={row.original.metadata.uid === selectedId} checked={row.getIsSelected()} columns={columns} minute={minute} onSelect={onSelect}/>)}</tbody></table>{!table.getRowModel().rows.length && <div className="empty compact"><h3>{loading ? `Loading ${label.toLowerCase()}…` : search ? 'No matching resources' : 'No resources found'}</h3><p>{loading ? 'Waiting for the Kubernetes API' : 'Choose another namespace or adjust your filters.'}</p></div>}</div>
     {table.getPageCount() > 1 && <div className="pagination"><span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span><button disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft size={14}/></button><button disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight size={14}/></button></div>}
     {confirm && <div className="modal-backdrop"><section className="confirm-modal"><h2>Delete {selected.length} resources?</h2><p>This deletes the selected resources from {store.clusters.find(c => c.id === store.clusterId)?.name}. Dependent resources may also be deleted by Kubernetes.</p><footer><button disabled={busy} onClick={() => setConfirm(false)}>Cancel</button><button className="danger" disabled={busy} onClick={() => void removeSelected()}>{busy ? 'Deleting…' : 'Confirm deletion'}</button></footer></section></div>}
     {logPicker && <LogSourceDialog pods={selected.map(r => r.original)} clusterId={store.clusterId} onClose={() => setLogPicker(false)}/>}
