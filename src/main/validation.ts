@@ -97,7 +97,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'clusters:list': z.undefined(), 'clusters:health': z.object({ clusterId: text }),
   'metrics:resource': target.extend({ uid: text, container: name.optional(), minutes: z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]) }),
   'resources:get': scope.extend({ name: z.string().min(1).max(253) }).refine(objectName(/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/), { message: 'Invalid resource name.', path: ['name'] }), 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
-  'resources:replace': target.extend({ yaml: z.string().min(1).max(2_000_000) }),
+  'resources:replace': target.safeExtend({ yaml: z.string().min(1).max(2_000_000), dryRun: z.boolean().optional() }),
   'resources:delete': target, 'resources:restart': target,
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),
   'cost:export': z.object({ text: z.string().max(16_000_000), format: z.enum(['csv', 'json']) }),

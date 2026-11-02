@@ -30,6 +30,15 @@ export function validateReplacement(target: Target, document: Resource) {
   if (!document || document.kind !== d.kind || document.apiVersion !== d.apiVersion || document.metadata?.name !== target.name || (d.namespaced && document.metadata?.namespace !== target.namespace)) throw new AppError('INVALID_RESOURCE', 'YAML must retain the selected resource name, namespace, kind, and API version.');
   if (!document.metadata.resourceVersion) throw new AppError('INVALID_RESOURCE', 'YAML must include resourceVersion to prevent overwriting concurrent changes.');
 }
+// Parses one YAML document, reporting syntax errors with their line instead of a generic failure.
+function parseManifest(yaml: string, multiple = 'Edit one YAML document. Remove extra "---" separators.') {
+  try { return parse(yaml, { maxAliasCount: 50 }); }
+  catch (error) {
+    const { code, linePos } = error as { code?: string; linePos?: { line: number }[] };
+    if (code === 'MULTIPLE_DOCS') throw new AppError('MULTIPLE_DOCUMENTS', multiple);
+    throw new AppError('INVALID_RESOURCE', `The manifest is not valid YAML${linePos?.[0] ? ` (line ${linePos[0].line})` : ''}. Check its indentation and syntax.`);
+  }
+}
 export class ResourceService {
   private apiVersions = new WeakMap<object, Map<string, { version: string; expires: number }>>();
   constructor(private clusters: ClusterManager) {}
@@ -133,11 +142,12 @@ export class ResourceService {
     if (resource.metadata) delete resource.metadata.managedFields;
     return stringify(resource);
   }
-  async replace(target: Target, yaml: string) {
+  async replace(target: Target, yaml: string, dryRun = false) {
     target = await this.resolveScope(target);
     if (definition(target).kind === 'Secret') throw new AppError('REDACTED', 'Secret editing is unavailable.');
-    const document = parse(yaml, { maxAliasCount: 50 }) as Resource; validateReplacement(target, document); delete document.status;
-    await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'PUT', body: document });
+    const document = parseManifest(yaml) as Resource; validateReplacement(target, document); delete document.status;
+    // A dry run runs admission, validation and conflict checks without persisting anything.
+    await kubeJson(this.config(target.clusterId), `${targetPath(target)}${dryRun ? '?dryRun=All' : ''}`, { method: 'PUT', body: document });
   }
   async delete(target: Target) { target = await this.resolveScope(target); await kubeJson(this.config(target.clusterId), targetPath(target), { method: 'DELETE', body: { apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background' } }); }
   async restart(target: Target) {
@@ -152,13 +162,7 @@ export class ResourceService {
     await kubeJson(this.config(clusterId), `/api/v1/nodes/${encodeURIComponent(name)}`, { method: 'PATCH', contentType: 'application/merge-patch+json', body: { spec: { unschedulable } } });
   }
   async apply(clusterId: string, yaml: string, namespace: string | undefined, dryRun: boolean, force = false) {
-    let document;
-    try { document = parse(yaml, { maxAliasCount: 50 }); }
-    catch (error) {
-      const { code, linePos } = error as { code?: string; linePos?: { line: number }[] };
-      if (code === 'MULTIPLE_DOCS') throw new AppError('MULTIPLE_DOCUMENTS', 'Create resource applies one YAML document. Remove extra "---" separators, or use Import files / chart… for multi-document YAML.');
-      throw new AppError('INVALID_RESOURCE', `The manifest is not valid YAML${linePos?.[0] ? ` (line ${linePos[0].line})` : ''}. Check its indentation and syntax.`);
-    }
+    const document = parseManifest(yaml, 'Create resource applies one YAML document. Remove extra "---" separators, or use Import files / chart… for multi-document YAML.');
     const identity = z.object({ apiVersion: z.string().regex(/^(?:v1|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?)$/), kind: z.string().regex(/^[A-Za-z][A-Za-z0-9]+$/), metadata: z.object({ name: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/).max(253), namespace: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(63).optional() }) }).safeParse(document);
     if (!identity.success) throw new AppError('INVALID_RESOURCE', 'Provide one manifest with apiVersion, kind and metadata.name.');
     const info = identity.data;

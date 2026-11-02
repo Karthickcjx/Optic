@@ -191,11 +191,23 @@ try {
   await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(yamlEditor).toHaveValue(/# unsaved edit/);
   assert.deepEqual(prompts, ['Discard unsaved YAML changes?', 'Discard unsaved YAML changes?', 'Discard unsaved YAML changes?']);
+  // Advanced editor: compare edits, validate with a server dry run, and revert.
+  await expect(page.locator('.yaml-toolbar [role=status]')).toHaveText('1 added, 0 removed');
+  await page.getByRole('button', { name: 'Show changes', exact: true }).click();
+  await expect(page.locator('.yaml-diff .diff-line.add')).toHaveText(/# unsaved edit/);
+  await expect(page.locator('.yaml-diff .diff-line.remove')).toHaveCount(0); await capture('11b-yaml-changes');
+  await page.getByRole('button', { name: 'Edit YAML', exact: true }).click();
+  await page.getByRole('button', { name: 'Validate', exact: true }).click();
+  await expect(page.locator('.details .validation-result')).toContainText('Nothing was saved');
+  assert.equal(requests.filter(r => r.method === 'PUT').every(r => r.query.includes('dryRun=All')), true);
+  await page.getByRole('button', { name: 'Revert', exact: true }).click();
+  await expect(yamlEditor).toHaveValue(originalYaml);
+  await expect(page.locator('.yaml-toolbar [role=status]')).toHaveText('No unsaved changes');
   await yamlEditor.fill(originalYaml);
   page.off('dialog', keepEdits);
   await page.getByRole('button', { name: 'Save YAML', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect.poll(() => requests.some(r => r.method === 'PUT')).toBe(true);
+  await expect.poll(() => requests.some(r => r.method === 'PUT' && !r.query.includes('dryRun'))).toBe(true);
   const result = await page.evaluate(async () => {
     const id = crypto.randomUUID(), output = [];
     const dispose = window.desktop.subscribe(event => { if (event.id === id && event.type === 'data') { output.push(event.data); void window.desktop.request('stream:ack', { id, seq: event.seq }); } });

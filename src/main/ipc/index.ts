@@ -137,7 +137,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
       streams.add(input.id, { owner, clusterId: input.clusterId, dispose: () => stop() });
       stop = resources.watch(input, items => streams.emit(input.id, { id: input.id, type: 'resources', items }), error => streams.error(input.id, error));
     },
-    'resources:yaml': input => resources.yaml(input), 'resources:replace': input => resources.replace(input, input.yaml),
+    'resources:yaml': input => resources.yaml(input), 'resources:replace': input => resources.replace(input, input.yaml, input.dryRun),
     'resources:delete': input => resources.delete(input), 'resources:restart': input => resources.restart(input),
     'logs:start': (input, owner) => sessions.logs(owner, input), 'terminal:open': (input, owner) => sessions.terminal(owner, input),
     'terminal:write': (input, owner) => { const session = streams.get(input.id, owner); if (!session.write) throw new AppError('NOT_TERMINAL', 'Stream does not accept input.'); session.write(input.data); },

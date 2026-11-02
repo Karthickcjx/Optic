@@ -103,7 +103,7 @@ export interface Requests {
   'resources:list': { input: Scope; output: Resource[] };
   'resources:watch': { input: Scope & { id: string }; output: void };
   'resources:yaml': { input: Target; output: string };
-  'resources:replace': { input: Target & { yaml: string }; output: void };
+  'resources:replace': { input: Target & { yaml: string; dryRun?: boolean }; output: void };
   'resources:delete': { input: Target; output: void };
   'resources:restart': { input: Target; output: void };
   'logs:start': { input: PodTarget & { id: string; tailLines?: number; previous?: boolean; sinceTime?: string }; output: void };

@@ -406,3 +406,14 @@
 .aws-profile-navigation .tree-leaf { min-width:0; }
 .aws-profile-navigation .tree-leaf span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .aws-profile-navigation .tree-group-children .tree-leaf { padding-left:46px; }
+.yaml-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:#8c98a5}
+.yaml-toolbar>span{flex:1;min-width:120px}
+.yaml-toolbar button{padding:4px 8px;font-size:11px;gap:5px;border-color:#3c4248}
+.yaml-toolbar button[aria-pressed=true]{background:#344854;color:#e2eef5}
+.yaml-diff{flex:1;min-height:200px;overflow:auto;background:#222528;font:12px/1.7 Consolas,monospace;padding:6px 0}
+.diff-line{display:grid;grid-template-columns:34px 34px 16px 1fr;white-space:pre;color:#b6cbd9}
+.diff-line.add{background:#1f3a2a;color:#c5e8cf}
+.diff-line.remove{background:#43262a;color:#f0c7cc}
+.diff-number{color:#5f6871;text-align:right;padding-right:6px;user-select:none}
+.diff-marker{user-select:none;text-align:center}
+.diff-skip{padding:2px 12px;color:#717b85;font-size:11px;background:#1c1f22;border-block:1px solid #2b2f33}
