@@ -60,6 +60,19 @@ try {
     await capture('01-welcome');
   }
   const errors = []; page.on('pageerror', e => errors.push(e.message));
+  // Navigator section headings and cluster chevrons collapse and expand their contents.
+  const navigator = page.locator('.navigator'), clusterRow = navigator.locator('.cluster-tree-header');
+  for (const name of ['Local Kubeconfigs', 'KUBERNETES CLUSTERS']) {
+    const heading = navigator.getByRole('button', { name, exact: true });
+    await expect(heading).toHaveAttribute('aria-expanded', 'true');
+    await heading.click(); await expect(heading).toHaveAttribute('aria-expanded', 'false'); await expect(clusterRow).toHaveCount(0);
+    await heading.click(); await expect(heading).toHaveAttribute('aria-expanded', 'true'); await expect(clusterRow).toHaveCount(1);
+  }
+  await navigator.getByRole('button', { name: 'Collapse local-test', exact: true }).click();
+  await expect(navigator.getByRole('button', { name: 'Expand local-test', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await expect(navigator.locator('.cluster-tree-children')).toHaveCount(0);
+  await navigator.getByRole('button', { name: 'Expand local-test', exact: true }).click();
+  await expect(navigator.locator('.cluster-tree-children')).toHaveCount(1);
   // Search must reveal nested policy entries even when Config is collapsed.
   await page.getByLabel('Find in Navigator', { exact: true }).fill('Validating Admission Policy Bindings');
   await page.locator('.navigator').getByRole('button', { name: 'Validating Admission Policy Bindings', exact: true }).click();
@@ -164,19 +177,6 @@ try {
   await page.getByRole('button', { name: 'YAML', exact: true }).click();
   await expect(page.getByLabel('Resource YAML')).toHaveValue(/api-gateway/);
   await capture('11-resource-yaml-editor');
-  await page.getByRole('button', { name: 'Save YAML', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect.poll(() => requests.some(r => r.method === 'PUT')).toBe(true);
-  const result = await page.evaluate(async () => {
-    const id = crypto.randomUUID(), output = [];
-    const dispose = window.desktop.subscribe(event => { if (event.id === id && event.type === 'data') { output.push(event.data); void window.desktop.request('stream:ack', { id, seq: event.seq }); } });
-    try {
-      const opened = await window.desktop.request('terminal:open', { id, cols: 80, rows: 24 });
-      if (!opened.ok) return { opened, text: '' };
-      await window.desktop.request('terminal:write', { id, data: 'echo WORKBENCH_PTY_OK\r' });
-      for (let n = 0; n < 100 && !/[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/.test(output.join('')); n++) await new Promise(resolve => setTimeout(resolve, 50));
-      return { opened, text: output.join('') };
-    } finally { dispose(); await window.desktop.request('stream:close', { id }); }
   // Unsaved YAML edits survive Escape in the editor; closing or Escape elsewhere asks first, and dismissing keeps them.
   const yamlEditor = page.getByLabel('Resource YAML'), originalYaml = await yamlEditor.inputValue(), prompts = [];
   const keepEdits = dialog => { prompts.push(dialog.message()); void dialog.dismiss(); };
@@ -193,6 +193,19 @@ try {
   assert.deepEqual(prompts, ['Discard unsaved YAML changes?', 'Discard unsaved YAML changes?', 'Discard unsaved YAML changes?']);
   await yamlEditor.fill(originalYaml);
   page.off('dialog', keepEdits);
+  await page.getByRole('button', { name: 'Save YAML', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect.poll(() => requests.some(r => r.method === 'PUT')).toBe(true);
+  const result = await page.evaluate(async () => {
+    const id = crypto.randomUUID(), output = [];
+    const dispose = window.desktop.subscribe(event => { if (event.id === id && event.type === 'data') { output.push(event.data); void window.desktop.request('stream:ack', { id, seq: event.seq }); } });
+    try {
+      const opened = await window.desktop.request('terminal:open', { id, cols: 80, rows: 24 });
+      if (!opened.ok) return { opened, text: '' };
+      await window.desktop.request('terminal:write', { id, data: 'echo WORKBENCH_PTY_OK\r' });
+      for (let n = 0; n < 100 && !/[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/.test(output.join('')); n++) await new Promise(resolve => setTimeout(resolve, 50));
+      return { opened, text: output.join('') };
+    } finally { dispose(); await window.desktop.request('stream:close', { id }); }
   });
   assert.equal(result.opened.ok, true, JSON.stringify(result)); assert.match(result.text, /[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/);
   await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();
