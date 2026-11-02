@@ -5,6 +5,7 @@ import { SecurityDashboard } from './SecurityDashboard';
 import { CostDashboard } from './CostDashboard';
 import { Applications } from './Applications';
 import { ArgoCDPage } from './ArgoCDPage';
+import { CommandPalette } from './CommandPalette';
 import { FluxPage } from './FluxPage';
 import { KubeconfigSourceDialog } from './KubeconfigSourceDialog';
 import { ResizableNavigator } from './ResizableNavigator';
@@ -52,7 +53,7 @@ function ResourcePage({ onCreate }: { onCreate: () => void }) {
 }
 export function App() {
   const store = useStore(); const [warnings, setWarnings] = useState<string[]>([]); const [health, setHealth] = useState('');
-  const [navigatorVisible, setNavigatorVisible] = useState(true); const [manifest, setManifest] = useState(false); const [palette, setPalette] = useState(false); const [query, setQuery] = useState('');
+  const [navigatorVisible, setNavigatorVisible] = useState(true); const [manifest, setManifest] = useState(false); const [palette, setPalette] = useState(false);
   const [connectionRevision, setConnectionRevision] = useState(0);
   const [eksProfile, setEksProfile] = useState('');
   const [eksOpen, setEksOpen] = useState(false);
@@ -84,6 +85,6 @@ export function App() {
     {pasteConfig && <KubeconfigImport onClose={() => setPasteConfig(false)} onImported={() => reload()}/>}
     {eksOpen && <EksDialog initialProfile={eksProfile} onClose={() => setEksOpen(false)} onAdded={() => void reload()}/>}
     {importChoice && <KubeconfigSourceDialog onEks={() => { setImportChoice(false); setEksProfile(''); setEksOpen(true); }} onClose={() => setImportChoice(false)} onFiles={() => { setImportChoice(false); void reload(true); }} onPaste={() => { setImportChoice(false); setPasteConfig(true); }}/>}
-    {palette && <div className="modal-backdrop" onClick={() => setPalette(false)}><section className="command-palette" onClick={e => e.stopPropagation()}><input autoFocus aria-label="Command search" placeholder="Search resources and commands…" value={query} onChange={e => setQuery(e.target.value)}/><div>{[['security', 'Security Overview'], ['security-images', 'Security Images'], ['security-resources', 'Security Resources'], ['security-roles', 'Security Roles'], ['cost', 'Cost dashboard'], ['applications', 'Applications'], ['gitops-argo', 'Argo CD'], ['gitops-flux', 'Flux'], ['overview','Cluster overview'], ['helm-charts','Helm Charts'], ['helm-releases','Helm Releases'], ...Object.entries(catalog).map(([key, item]) => [key, item.label])].filter(([, label]) => label.toLowerCase().includes(query.toLowerCase())).map(([key, label]) => <button key={key} disabled={!cluster} onClick={() => { store.navigate(key as any); setPalette(false); setQuery(''); }}><Box size={15}/>{label}<small>{cluster?.name}</small></button>)}<button disabled={!cluster} onClick={() => { window.dispatchEvent(new Event('optic-import-deploy')); setPalette(false); }}>Import and deploy</button><button onClick={() => { openTerminal(); setPalette(false); }}><TerminalSquare size={15}/>Open local terminal</button><button onClick={() => { setImportChoice(true); setPalette(false); }}><FolderOpen size={15}/>Import kubeconfig</button></div></section></div>}
+    {palette && <CommandPalette onClose={() => setPalette(false)} onTerminal={openTerminal} onImport={() => setImportChoice(true)}/>}
   </div>;
 }

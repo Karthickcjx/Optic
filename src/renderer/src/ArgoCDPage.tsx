@@ -29,6 +29,9 @@ export function ArgoCDPage() {
   const [argoUi, setArgoUi] = useState<string>();
   useEffect(() => { let active = true; setArgoUi(undefined); if (types.applications) request('gitops:argo-url', { clusterId, namespace: controllerNamespace }).then(r => { if (active) setArgoUi(r.url); }, () => {}); return () => { active = false; }; }, [clusterId, controllerNamespace, !!types.applications, revision]);
   const openResource = useOpenResource(clusterId, setNotice);
+  // An application chosen in the command palette opens in the Applications section.
+  const focus = useStore(s => s.gitopsFocus);
+  useEffect(() => { if (focus?.type !== 'applications') return; setSection('Applications'); setFilter({}); setSelected({ kind: 'app', name: focus.name, namespace: focus.namespace }); useStore.getState().setGitOpsFocus(undefined); }, [focus]);
   const openArgo = (application?: { namespace: string; name: string }) => { setNotice(''); request('gitops:open-argo', { clusterId, namespace: controllerNamespace, application }).catch(e => setNotice((e as Error).message)); };
   const refresh = () => { setRevision(v => v + 1); for (const w of [apps, sets, projects, events]) w.refresh(); };
   const showApps = (f: ArgoFilter) => { setFilter(f); setSection('Applications'); setSelected(undefined); };

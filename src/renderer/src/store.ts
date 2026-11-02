@@ -1,6 +1,7 @@
 import type { LogOptions } from '../../shared/logs';
 import type { ClusterSettings } from '../../shared/cluster-settings';
 import { create } from 'zustand';
+import type { GitOpsType } from '../../shared/gitops';
 import { catalog, type CustomType, type View } from '../../shared/catalog';
 import type { Cluster, PodTarget, Resource, ResourceKind, Requests, TerminalOptions } from '../../shared/protocol';
 export interface DockTab { id: string; type: 'terminal' | 'logs' | 'forward'; title: string; options: TerminalOptions | PodTarget | LogOptions | Omit<Requests['forward:start']['input'], 'id'> }
@@ -17,6 +18,8 @@ interface State {
   setNamespace: (namespace: string) => void; setKind: (kind: ResourceKind) => void;
   navigate: (view: View, clusterId?: string, custom?: CustomType) => void; activatePage: (id: string) => void; closePage: (id: string) => void;
   select: (resource?: Resource) => void; notify: (message?: string) => void;
+  // A GitOps object chosen in the command palette; the Argo CD or Flux page opens its details, then clears it.
+  gitopsFocus?: { type: GitOpsType; name: string; namespace?: string }; setGitOpsFocus: (focus?: { type: GitOpsType; name: string; namespace?: string }) => void;
   // Set while the Details YAML editor holds unsaved edits; select() asks before discarding them.
   detailsDirty: boolean; setDetailsDirty: (dirty: boolean) => void;
   openTab: (tab: Omit<DockTab, 'id'>) => void; closeTab: (id: string) => void; activateTab: (id: string) => void; toggleDock: () => void;
@@ -57,7 +60,7 @@ export const useStore = create<State>((set, get) => ({
     set({ pages }); if (state.activePage === id) get().activatePage(pages.at(-1)!.id);
   },
   select: selected => { const current = get(), other = selected?.metadata.uid !== current.selected?.metadata.uid; if (other && current.detailsDirty && !window.confirm(discardYaml)) return; set({ selected, ...(other ? { detailsDirty: false } : {}) }); },
-  detailsDirty: false, setDetailsDirty: detailsDirty => set({ detailsDirty }), notify: error => set({ error }), toggleDock: () => set(s => ({ dockCollapsed: !s.dockCollapsed })),
+  detailsDirty: false, setDetailsDirty: detailsDirty => set({ detailsDirty }), setGitOpsFocus: gitopsFocus => set({ gitopsFocus }), notify: error => set({ error }), toggleDock: () => set(s => ({ dockCollapsed: !s.dockCollapsed })),
   openTab: tab => set(state => { const id = crypto.randomUUID(); return { tabs: [...state.tabs, { ...tab, id }], activeTab: id, dockCollapsed: false }; }),
   closeTab: id => set(state => { const tabs = state.tabs.filter(t => t.id !== id); return { tabs, activeTab: state.activeTab === id ? tabs.at(-1)?.id : state.activeTab }; }),
   activateTab: activeTab => set({ activeTab, dockCollapsed: false })

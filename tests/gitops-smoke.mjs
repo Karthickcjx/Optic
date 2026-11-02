@@ -164,6 +164,15 @@ try {
   await fluxTab('Helm releases').click(); await expect(rowOf('podinfo-helm')).toContainText('True');
   await capture('flux-sources');
 
+  // Command palette: resources are searchable by name and open in their GitOps view.
+  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  await page.keyboard.press('Control+k'); await page.getByLabel('Command search', { exact: true }).fill('guestbook-man');
+  await palette.getByRole('button', { name: /^guestbook-manual/ }).click();
+  await expect(argoTab('Applications')).toHaveAttribute('aria-selected', 'true'); await expect(drawer.getByRole('heading', { name: 'guestbook-manual' })).toBeVisible();
+  await page.keyboard.press('Control+k'); await page.getByLabel('Command search', { exact: true }).fill('broken-pa');
+  await palette.getByRole('button', { name: /^broken-path/ }).click();
+  await expect(fluxTab('Kustomizations')).toHaveAttribute('aria-selected', 'true'); await expect(drawer.getByRole('heading', { name: 'broken-path' })).toBeVisible();
+
   // Empty and unreachable clusters.
   await open('plain', 'Argo CD'); await expect(page.getByRole('heading', { name: 'Argo CD is not installed' })).toBeVisible();
   await open('plain', 'Flux'); await expect(page.getByRole('heading', { name: 'Flux is not installed' })).toBeVisible();

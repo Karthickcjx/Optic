@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GitBranch } from 'lucide-react';
 import { consumersOf, fluxAttention, fluxKindOf, fluxObject, fluxSourceTypes, fluxSummary, gitopsTypes, type FluxObject, type FluxType } from '../../shared/gitops';
 import { useStore } from './store';
@@ -23,6 +23,13 @@ export function FluxPage() {
   const [section, setSection] = useState<Section>('Overview'), [sourceKind, setSourceKind] = useState<FluxType | ''>(''), [status, setStatus] = useState<Status>(''), [search, setSearch] = useState('');
   const [sort, onSort] = useSort<SortKey>('name'), [selected, setSelected] = useState<{ type: FluxType; namespace?: string; name: string; tab?: string }>(), [notice, setNotice] = useState('');
   const openResource = useOpenResource(clusterId, setNotice);
+  // A Flux object chosen in the command palette opens in its section.
+  const focus = useStore(s => s.gitopsFocus);
+  useEffect(() => {
+    if (!focus || focus.type === 'applications' || focus.type === 'applicationsets' || focus.type === 'appprojects') return;
+    const type = focus.type as FluxType; setSection(type === 'kustomizations' ? 'Kustomizations' : type === 'helmreleases' ? 'Helm releases' : 'Sources'); setSourceKind(''); setStatus(''); setSearch('');
+    setSelected({ type, name: focus.name, namespace: focus.namespace }); useStore.getState().setGitOpsFocus(undefined);
+  }, [focus]);
   const refresh = () => { setRevision(v => v + 1); for (const t of detected) watches[t].refresh(); };
   const sectionTypes: FluxType[] = section === 'Kustomizations' ? ['kustomizations'] : section === 'Helm releases' ? ['helmreleases'] : section === 'Sources' ? (sourceKind ? [sourceKind] : fluxSourceTypes.filter(t => types[t])) : [];
   const rows = useMemo(() => {
