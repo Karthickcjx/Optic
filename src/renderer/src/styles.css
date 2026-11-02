@@ -422,3 +422,62 @@
 .mcp-access dd{margin:0;overflow-wrap:anywhere}
 .mcp-access-actions{display:flex;gap:8px}
 .mcp-config{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;font:12px/1.6 Consolas,monospace;background:#222528;color:#b6cbd9;padding:10px 12px;border-radius:3px;margin:0}
+.gitops-page .detail-tabs{margin-top:8px}
+.gitops-kinds{display:flex;gap:4px;flex-wrap:wrap;padding:10px 0 2px}
+.gitops-kinds button{padding:4px 10px;border-color:#3c4248;font-size:12px}
+.gitops-kinds button.active{background:#344854;color:#e2eef5}
+.gitops-kinds small{color:#8c98a5;margin-left:4px}
+.gitops-table{width:100%;border-collapse:collapse;font-size:12px}
+.gitops-table th,.gitops-table td{padding:7px 8px;text-align:left;border-bottom:1px solid #33373c;vertical-align:top}
+.gitops-table th{color:#8c98a5;font-weight:500}
+.gitops-table tr.selected{background:#2d3a44}
+.gitops-message{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gitops-link{padding:0;border:0;color:#53ace6;background:none}
+.gitops-link:hover{background:none;color:#7cc3f0;text-decoration:underline}
+.gitops-badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;margin-right:4px;background:#3a3f45;color:#c9d1d9}
+.gitops-badge.good{background:#1f3a2a;color:#9fd8b0}
+.gitops-badge.warn{background:#43381f;color:#e7c97b}
+.gitops-badge.bad{background:#43262a;color:#f0aab3}
+.gitops-badges{display:flex;gap:4px;flex-wrap:wrap}
+.gitops-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:12px}
+.gitops-list li{overflow-wrap:anywhere}
+.gitops-list .gitops-link{margin-left:6px}
+.gitops-details summary{cursor:pointer;color:#aeb9c4;font-size:12px;margin-bottom:6px}
+.gitops-empty{margin-top:24px;border:1px solid #373d42;padding:24px;max-width:680px;display:flex;flex-direction:column;gap:8px;color:#aeb9c4}
+.gitops-page{min-width:0}
+.gitops-scroll{overflow-x:auto;max-width:100%}
+.gitops-scroll .gitops-table td{white-space:nowrap}
+.gitops-scroll .gitops-table td.gitops-message{white-space:nowrap}
+.gitops-page>header{align-items:flex-start}
+.gitops-page>header p{margin:4px 0 0}
+.gitops-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gitops-stats{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.gitops-stat{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border:1px solid #373d42;border-radius:4px;background:#25282c;font-size:12px;color:#9aa5b1}
+button.gitops-stat:hover{background:#2d3237;color:#d4dde6}
+.gitops-stat.active{border-color:#479ed6;background:#24323d}
+.gitops-stat-value{font-size:16px;color:#c9d1d9}
+.gitops-stat-value.good{color:#7fd19a}.gitops-stat-value.warn{color:#e7c97b}.gitops-stat-value.bad{color:#f08b98}
+.gitops-sections{margin:10px 0 12px}
+.gitops-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px}
+.gitops-card{border:1px solid #373d42;background:#25282c;padding:14px 16px;margin-bottom:12px;min-width:0}
+.gitops-cards .gitops-card{margin-bottom:0}
+.gitops-card>header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.gitops-card h2{font-size:15px;margin:0}
+.gitops-big{margin:4px 0;font-size:13px;color:#9aa5b1}.gitops-big b{font-size:22px;color:#d4dde6;margin-right:4px}
+.gitops-links{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0;font-size:12px}
+.gitops-link.warn,.gitops-links .warn,span.warn{color:#e7c97b}.gitops-link.bad,.gitops-links .bad,span.bad{color:#f08b98}.good{color:#7fd19a}
+.gitops-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.gitops-filters input{min-width:220px}
+.gitops-clickable{cursor:pointer}.gitops-clickable:hover{background:#2a3036}
+.gitops-wrap{white-space:normal !important;overflow-wrap:anywhere;min-width:220px}
+.gitops-sort{padding:0;border:0;background:none;color:inherit;font:inherit;display:inline-flex;gap:3px;align-items:center}
+.gitops-sort:hover{background:none;color:#d4dde6}
+.gitops-skeleton{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.gitops-skeleton>div{display:flex;gap:12px}
+.gitops-skeleton span{height:12px;flex:1;border-radius:3px;background:linear-gradient(90deg,#2c3035,#363b41,#2c3035);background-size:200% 100%;animation:gitops-shimmer 1.2s infinite linear}
+@keyframes gitops-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.gitops-skeleton span{animation:none}}
+.gitops-yaml{white-space:pre;overflow:auto;font:12px/1.6 Consolas,monospace;background:#222528;color:#b6cbd9;padding:10px 12px;margin:0;max-height:none}
+.gitops-drawer-badges{padding:0 16px 8px;align-items:center}
+.gitops-check{display:flex;gap:6px;align-items:center;font-size:12px}
+.gitops-details{width:640px}

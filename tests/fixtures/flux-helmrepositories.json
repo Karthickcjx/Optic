@@ -1,0 +1,60 @@
+{
+ "apiVersion": "v1",
+ "items": [
+  {
+   "apiVersion": "source.toolkit.fluxcd.io/v1",
+   "kind": "HelmRepository",
+   "metadata": {
+    "annotations": {},
+    "creationTimestamp": "2026-11-02T14:19:49Z",
+    "finalizers": [
+     "finalizers.fluxcd.io"
+    ],
+    "generation": 1,
+    "name": "podinfo",
+    "namespace": "flux-system",
+    "resourceVersion": "4015",
+    "uid": "ec6b614a-5cb0-40db-8c9f-409c72a5248a"
+   },
+   "spec": {
+    "interval": "10m",
+    "provider": "generic",
+    "url": "https://stefanprodan.github.io/podinfo"
+   },
+   "status": {
+    "artifact": {
+     "digest": "sha256:565bcd63a0e23a833da30b2b17d4a58106672960bd5f531c0dcd04d3a04fc7ed",
+     "lastUpdateTime": "2026-11-02T14:19:50Z",
+     "path": "helmrepository/flux-system/podinfo/index-cf283c0bb71bb05b95218dd3325b2dd576a9d1234c99307ddd6fbc7865cfb0d5.yaml",
+     "revision": "sha256:cf283c0bb71bb05b95218dd3325b2dd576a9d1234c99307ddd6fbc7865cfb0d5",
+     "size": 83348,
+     "url": "http://source-controller.flux-system.svc.cluster.local./helmrepository/flux-system/podinfo/index-cf283c0bb71bb05b95218dd3325b2dd576a9d1234c99307ddd6fbc7865cfb0d5.yaml"
+    },
+    "conditions": [
+     {
+      "lastTransitionTime": "2026-11-02T14:19:50Z",
+      "message": "stored artifact: revision 'sha256:cf283c0bb71bb05b95218dd3325b2dd576a9d1234c99307ddd6fbc7865cfb0d5'",
+      "observedGeneration": 1,
+      "reason": "Succeeded",
+      "status": "True",
+      "type": "Ready"
+     },
+     {
+      "lastTransitionTime": "2026-11-02T14:19:50Z",
+      "message": "stored artifact: revision 'sha256:cf283c0bb71bb05b95218dd3325b2dd576a9d1234c99307ddd6fbc7865cfb0d5'",
+      "observedGeneration": 1,
+      "reason": "Succeeded",
+      "status": "True",
+      "type": "ArtifactInStorage"
+     }
+    ],
+    "observedGeneration": 1,
+    "url": "http://source-controller.flux-system.svc.cluster.local./helmrepository/flux-system/podinfo/index.yaml"
+   }
+  }
+ ],
+ "kind": "List",
+ "metadata": {
+  "resourceVersion": ""
+ }
+}

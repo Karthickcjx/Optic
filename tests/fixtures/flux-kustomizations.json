@@ -1,0 +1,128 @@
+{
+ "apiVersion": "v1",
+ "items": [
+  {
+   "apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+   "kind": "Kustomization",
+   "metadata": {
+    "annotations": {},
+    "creationTimestamp": "2026-11-02T14:19:49Z",
+    "finalizers": [
+     "finalizers.fluxcd.io"
+    ],
+    "generation": 1,
+    "name": "broken-path",
+    "namespace": "flux-system",
+    "resourceVersion": "4101",
+    "uid": "cc9d41f9-45e5-4e38-81f6-882d38611fc4"
+   },
+   "spec": {
+    "force": false,
+    "interval": "10m",
+    "path": "./does-not-exist",
+    "prune": true,
+    "sourceRef": {
+     "kind": "GitRepository",
+     "name": "podinfo"
+    },
+    "targetNamespace": "flux-demo"
+   },
+   "status": {
+    "conditions": [
+     {
+      "lastTransitionTime": "2026-11-02T14:19:53Z",
+      "message": "Fetching manifests for revision 6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6 with a timeout of 9m30s",
+      "observedGeneration": 1,
+      "reason": "ProgressingWithRetry",
+      "status": "True",
+      "type": "Reconciling"
+     },
+     {
+      "lastTransitionTime": "2026-11-02T14:19:53Z",
+      "message": "kustomization path not found: stat /tmp/kustomization-3654591131/does-not-exist: no such file or directory",
+      "observedGeneration": 1,
+      "reason": "ArtifactFailed",
+      "status": "False",
+      "type": "Ready"
+     }
+    ],
+    "observedGeneration": -1
+   }
+  },
+  {
+   "apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+   "kind": "Kustomization",
+   "metadata": {
+    "annotations": {},
+    "creationTimestamp": "2026-11-02T14:19:49Z",
+    "finalizers": [
+     "finalizers.fluxcd.io"
+    ],
+    "generation": 1,
+    "name": "podinfo",
+    "namespace": "flux-system",
+    "resourceVersion": "4120",
+    "uid": "79aecd4c-d932-449a-97b3-748d6f58d6d2"
+   },
+   "spec": {
+    "force": false,
+    "interval": "10m",
+    "path": "./kustomize",
+    "prune": true,
+    "sourceRef": {
+     "kind": "GitRepository",
+     "name": "podinfo"
+    },
+    "targetNamespace": "flux-demo"
+   },
+   "status": {
+    "conditions": [
+     {
+      "lastTransitionTime": "2026-11-02T14:19:53Z",
+      "message": "Applied revision: 6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+      "observedGeneration": 1,
+      "reason": "ReconciliationSucceeded",
+      "status": "True",
+      "type": "Ready"
+     }
+    ],
+    "history": [
+     {
+      "digest": "sha256:55df84f0049d5b93872af7f887495894f79218a5038cfd01c196d2a53ce6c674",
+      "firstReconciled": "2026-11-02T14:19:53Z",
+      "lastReconciled": "2026-11-02T14:19:53Z",
+      "lastReconciledDuration": "460.251137ms",
+      "lastReconciledStatus": "ReconciliationSucceeded",
+      "metadata": {
+       "revision": "6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6"
+      },
+      "totalReconciliations": 1
+     }
+    ],
+    "inventory": {
+     "entries": [
+      {
+       "id": "flux-demo_podinfo__Service",
+       "v": "v1"
+      },
+      {
+       "id": "flux-demo_podinfo_apps_Deployment",
+       "v": "v1"
+      },
+      {
+       "id": "flux-demo_podinfo_autoscaling_HorizontalPodAutoscaler",
+       "v": "v2"
+      }
+     ]
+    },
+    "lastAppliedRevision": "6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+    "lastAttemptedRevision": "6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+    "observedGeneration": 1
+   }
+  }
+ ],
+ "kind": "List",
+ "metadata": {
+  "resourceVersion": ""
+ }
+}

@@ -251,6 +251,26 @@ Apply closes the dialog and reports background progress and per-resource results
 
 Reviews expire after ten minutes. Changes to inputs or kubeconfig require another review. Manifests are limited to 200 input files, 500 resources and 20 MiB total. Charts are limited to 2,000 files / 100 MiB expanded and 20 MiB compressed. Secret payloads are redacted in previews, but arbitrary ConfigMaps and values can still contain sensitive configuration.
 
+## GitOps (Argo CD and Flux)
+
+Open **GitOps → Argo CD** or **GitOps → Flux** under a cluster in the Navigator. Optic detects the installed controllers through API discovery and shows live, read-only status from the Kubernetes API:
+
+- **Argo CD:**
+  - **Status counters:** clickable; each filters the application list.
+  - **Overview cards:** Applications, Projects and Application sets.
+  - **Needs attention:** out of sync, degraded, missing, failed syncs, errors, and unhealthy resources.
+  - **Recent activity:** Argo CD events and deployment history, with filters for kind, namespace, application, type and time.
+  - **Applications list:** search, filters for project, health, sync and application set, sorting, and a right-click menu.
+  - **Application details:** Overview, Resources, Events, History, YAML and Conditions.
+  - **Application sets:** generators, template and generated applications.
+  - **Projects:** source repositories, destinations, resource permissions, roles and applications.
+- **Flux:**
+  - **Overview:** status counters, a card per kind and Needs attention.
+  - **Lists:** Kustomizations, Helm releases, and Sources (Git, Helm, OCI and Bucket).
+  - **Details:** revisions, reconciliation times, conditions, applied resources, source consumers, events, history and YAML.
+
+Optic never syncs, refreshes Argo CD operations, or reconciles; **Refresh** only reloads data. **Open Argo CD UI** appears when the cluster's `argocd-cm` publishes `url`. Kubernetes RBAC applies: kinds you cannot list show the API server's permission message. Argo CD keeps desired manifests, the child resource tree and (in Argo CD 3) per-resource health in its own server, so they appear only when the Application object reports them.
+
 ## AI clients (MCP server)
 
 Optic includes a standalone, read-only [Model Context Protocol](https://modelcontextprotocol.io) server, so MCP-compatible AI clients such as Claude Code can inspect your clusters. The server runs without the Optic window, communicates over stdio only (no network listener), sends only `GET` requests, and works within your Kubernetes RBAC.

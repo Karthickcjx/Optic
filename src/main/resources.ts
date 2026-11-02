@@ -67,7 +67,7 @@ export class ResourceService {
   private async listVersioned(scope: Scope, signal?: AbortSignal): Promise<{ items: Resource[]; version?: string }> {
     const items: Resource[] = []; let continuation = '', version: string | undefined;
     do {
-      const query = new URLSearchParams({ limit: '500', ...(continuation ? { continue: continuation } : {}) });
+      const query = new URLSearchParams({ limit: '500', ...(continuation ? { continue: continuation } : {}), ...(scope.fieldSelector ? { fieldSelector: scope.fieldSelector } : {}) });
       const response = await kubeJson<{ items: Resource[]; metadata?: { resourceVersion?: string; continue?: string } }>(this.config(scope.clusterId), `${resourcePath(scope)}?${query}`, { signal });
       items.push(...response.items.map(item => this.normalize(scope, item))); version = response.metadata?.resourceVersion;
       continuation = response.metadata?.continue ?? '';
@@ -112,7 +112,7 @@ export class ResourceService {
         listing = false;
         const watched = resolved!, opened = Date.now(); let ended = false;
         // The client aborts a watch after 30 s without data; a shorter server timeout ends quiet watches normally first.
-        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(watched), { resourceVersion: version, allowWatchBookmarks: true, timeoutSeconds: 25 }, (type, object) => {
+        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(watched), { resourceVersion: version, allowWatchBookmarks: true, timeoutSeconds: 25, ...(watched.fieldSelector ? { fieldSelector: watched.fieldSelector } : {}) }, (type, object) => {
           if (stopped || current !== generation) return;
           if (type === 'ERROR') { if (object?.code === 410) expire(); else fail(Object.assign(new Error('Watch failed'), { statusCode: object?.code }), false); return; }
           if (object?.metadata?.resourceVersion) version = object.metadata.resourceVersion;

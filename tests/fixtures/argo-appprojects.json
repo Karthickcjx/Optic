@@ -1,0 +1,88 @@
+{
+ "apiVersion": "v1",
+ "items": [
+  {
+   "apiVersion": "argoproj.io/v1alpha1",
+   "kind": "AppProject",
+   "metadata": {
+    "creationTimestamp": "2026-11-02T14:43:00Z",
+    "generation": 1,
+    "name": "default",
+    "namespace": "argocd",
+    "resourceVersion": "12158",
+    "uid": "676eccdb-7f60-40d5-a063-fe5f96f4d8b5"
+   },
+   "spec": {
+    "clusterResourceWhitelist": [
+     {
+      "group": "*",
+      "kind": "*"
+     }
+    ],
+    "destinations": [
+     {
+      "namespace": "*",
+      "server": "*"
+     }
+    ],
+    "sourceRepos": [
+     "*"
+    ]
+   },
+   "status": {}
+  },
+  {
+   "apiVersion": "argoproj.io/v1alpha1",
+   "kind": "AppProject",
+   "metadata": {
+    "annotations": {},
+    "creationTimestamp": "2026-11-02T14:48:01Z",
+    "generation": 1,
+    "name": "team-a",
+    "namespace": "argocd",
+    "resourceVersion": "14184",
+    "uid": "ba502e73-1295-437f-8b78-91795a3544e8"
+   },
+   "spec": {
+    "clusterResourceWhitelist": [
+     {
+      "group": "",
+      "kind": "Namespace"
+     }
+    ],
+    "description": "Team A applications (restricted)",
+    "destinations": [
+     {
+      "namespace": "team-a-*",
+      "server": "https://kubernetes.default.svc"
+     }
+    ],
+    "namespaceResourceBlacklist": [
+     {
+      "group": "",
+      "kind": "ResourceQuota"
+     }
+    ],
+    "roles": [
+     {
+      "description": "Read-only access for Team A",
+      "groups": [
+       "team-a-viewers"
+      ],
+      "name": "viewer",
+      "policies": [
+       "p, proj:team-a:viewer, applications, get, team-a/*, allow"
+      ]
+     }
+    ],
+    "sourceRepos": [
+     "https://github.com/argoproj/argocd-example-apps.git"
+    ]
+   }
+  }
+ ],
+ "kind": "List",
+ "metadata": {
+  "resourceVersion": ""
+ }
+}

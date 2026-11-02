@@ -1,4 +1,5 @@
 import type { McpAccess } from './mcp';
+import type { GitOpsDetection } from './gitops';
 import type { CostQuery, CostReport } from './cost';
 import type { OverviewHistory } from './metrics';
 import type { ResourceMetricRequest, ResourceMetricResult } from './resource-metrics';
@@ -15,7 +16,7 @@ export interface Resource {
   spec?: Record<string, any>; status?: Record<string, any>; [key: string]: any;
 }
 export interface Cluster { id: string; name: string; server: string; source: string; namespace: string; connected?: boolean }
-export interface Scope { clusterId: string; kind: ResourceKind; namespace?: string; custom?: CustomType }
+export interface Scope { clusterId: string; kind: ResourceKind; namespace?: string; custom?: CustomType; fieldSelector?: string }
 export interface Target extends Scope { name: string }
 export interface PodTarget { clusterId: string; namespace: string; pod: string; container?: string }
 export interface TerminalOptions { awsLogin?: import('./eks').AwsLogin; externalTool?: boolean; node?: string; clusterId?: string; pod?: string; namespace?: string; container?: string; shell?: string; localShell?: import('./terminal').LocalShellId; cols: number; rows: number }
@@ -81,6 +82,9 @@ export interface Requests {
   'settings:directory': { input: undefined; output: string | undefined };
   'settings:reveal': { input: { clusterId: string }; output: void };
   'mcp:access': { input: { clusterId: string }; output: McpAccess };
+  'gitops:detect': { input: { clusterId: string }; output: GitOpsDetection };
+  'gitops:argo-url': { input: { clusterId: string; namespace: string }; output: { url?: string } };
+  'gitops:open-argo': { input: { clusterId: string; namespace: string; application?: { namespace: string; name: string } }; output: void };
   'mcp:access-set': { input: { clusterId: string; approved: boolean }; output: McpAccess };
   'clusters:connect': { input: { clusterId: string }; output: { version: string; latencyMs: number } };
   'clusters:disconnect': { input: { clusterId: string }; output: void };
@@ -118,7 +122,7 @@ export interface Requests {
   'stream:ack': { input: { id: string; seq: number }; output: void };
   'stream:close': { input: { id: string }; output: void };
 }
-export const channels: (keyof Requests)[] = ['mcp:access', 'mcp:access-set', 'security:copy-install', 'security:reports', 'security:detail', 'cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
+export const channels: (keyof Requests)[] = ['gitops:detect', 'gitops:argo-url', 'gitops:open-argo', 'mcp:access', 'mcp:access-set', 'security:copy-install', 'security:reports', 'security:detail', 'cost:export', 'cost:report', 'metrics:history', 'nodes:drain-preview', 'nodes:drain', 'deployments:revisions', 'deployments:rollback', 'cronjobs:trigger', 'cronjobs:suspend', 'resources:edit', 'metrics:resource', 'resources:get', 'helm:repositories', 'helm:repository-save', 'helm:charts', 'helm:versions', 'helm:chart-info', 'helm:releases', 'helm:details', 'helm:preview', 'helm:apply', 'helm:rollback', 'helm:uninstall', 'settings:get', 'settings:save', 'settings:directory', 'settings:reveal', 'clusters:connect', 'clusters:disconnect', 'cost:read', 'monitoring:version', 'monitoring:status', 'monitoring:apply', 'nodeshell:open', 'clusters:remove', 'forward:start', 'clusters:import', 'clusters:import-clipboard', 'metrics:read', 'resources:apply', 'resources:scale', 'nodes:cordon', 'clusters:list', 'clusters:health', 'resources:list', 'resources:watch', 'resources:yaml', 'resources:replace', 'resources:delete', 'resources:restart', 'logs:start', 'logs:export', 'terminal:open', 'terminal:write', 'terminal:resize', 'stream:ack', 'stream:close'];
 channels.push('deploy:stop', 'imports:dependencies', 'imports:pick', 'imports:remote', 'imports:dispose', 'deploy:prepare', 'deploy:discard', 'deploy:start', 'deploy:status', 'deploy:dismiss');
 channels.push('terminal:profiles', 'terminal:clipboard-read', 'terminal:clipboard-write');
 channels.push('extensions:list', 'extensions:pick', 'extensions:install', 'extensions:enable', 'extensions:remove', 'extensions:run');

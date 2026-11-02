@@ -1,0 +1,1199 @@
+{
+ "apiVersion": "v1",
+ "items": [
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:21Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "broken",
+    "namespace": "argocd",
+    "resourceVersion": "12466",
+    "uid": "ba6f32f5-6818-47db-91ac-89835cd8ca91"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:21Z",
+   "message": "Updated sync status:  -> Unknown",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-broken",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:21Z",
+    "name": "broken.18e44187738e75a8",
+    "namespace": "argocd",
+    "resourceVersion": "1047",
+    "uid": "c87cadbb-214e-409e-adb7-6bd955939470"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:21Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "broken",
+    "namespace": "argocd",
+    "resourceVersion": "12466",
+    "uid": "ba6f32f5-6818-47db-91ac-89835cd8ca91"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:21Z",
+   "message": "Updated health status:  -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-broken",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:21Z",
+    "name": "broken.18e4418774161007",
+    "namespace": "argocd",
+    "resourceVersion": "1048",
+    "uid": "5e0d9d8c-cb1c-4d9a-bcea-0b4eb1e26551"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14191",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Initiated automated sync to '8088f4c0d970abb09e250248cc97e35623447cb5'",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-dev.18e441c906f9334c",
+    "namespace": "argocd",
+    "resourceVersion": "1137",
+    "uid": "266466e0-95b9-4d5e-a1a5-ecbe0757e18d"
+   },
+   "reason": "OperationStarted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14191",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated sync status:  -> OutOfSync",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-dev.18e441c9077cf565",
+    "namespace": "argocd",
+    "resourceVersion": "1139",
+    "uid": "41214bc3-5c5a-4178-8704-be7a759edc44"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14191",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated health status:  -> Missing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-dev.18e441c907b1a37b",
+    "namespace": "argocd",
+    "resourceVersion": "1140",
+    "uid": "1c34fb0d-ebd6-4875-b54c-a07c2700717e"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14243",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Sync operation to 8088f4c0d970abb09e250248cc97e35623447cb5 succeeded",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-dev.18e441c940bf7322",
+    "namespace": "argocd",
+    "resourceVersion": "1148",
+    "uid": "d019a3ed-a19b-4fab-b58f-0ad2b31dce3a"
+   },
+   "reason": "OperationCompleted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14243",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated health status: Missing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-dev.18e441c9425701a4",
+    "namespace": "argocd",
+    "resourceVersion": "1149",
+    "uid": "d43a5f90-9f39-4f72-b474-d140cf2424c4"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14284",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated sync status: OutOfSync -> Synced",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-dev.18e441c94b07d364",
+    "namespace": "argocd",
+    "resourceVersion": "1155",
+    "uid": "0ed0553c-5384-4b93-a611-bab31b1efd9a"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14284",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated health status: Healthy -> Progressing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-dev.18e441c94b4199f5",
+    "namespace": "argocd",
+    "resourceVersion": "1156",
+    "uid": "99bcebd6-fa21-40f9-bbfa-b646593c87cc"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:05Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-dev",
+    "namespace": "argocd",
+    "resourceVersion": "14290",
+    "uid": "78c6799a-d55e-41b8-ad15-a91f42bcca25"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:05Z",
+   "message": "Updated health status: Progressing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-dev",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:05Z",
+    "name": "guestbook-dev.18e441c9722b8116",
+    "namespace": "argocd",
+    "resourceVersion": "1163",
+    "uid": "6019ad6e-7b6e-49f9-81e1-563fea049858"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-manual",
+    "namespace": "argocd",
+    "resourceVersion": "12463",
+    "uid": "a1f00ca0-703a-4364-9d97-68d237579bb4"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Updated sync status:  -> OutOfSync",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-manual",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook-manual.18e4418793d363fb",
+    "namespace": "argocd",
+    "resourceVersion": "1057",
+    "uid": "a3123947-6a7a-4bd9-a63b-29c24edf90a4"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-manual",
+    "namespace": "argocd",
+    "resourceVersion": "12463",
+    "uid": "a1f00ca0-703a-4364-9d97-68d237579bb4"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Updated health status:  -> Missing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-manual",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook-manual.18e441879408cbd0",
+    "namespace": "argocd",
+    "resourceVersion": "1058",
+    "uid": "98d805dd-a7bb-4443-8e35-6d05b508a760"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14192",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Initiated automated sync to '8088f4c0d970abb09e250248cc97e35623447cb5'",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-stage.18e441c9065ee3dd",
+    "namespace": "argocd",
+    "resourceVersion": "1135",
+    "uid": "f4e1a0ae-e639-49bd-981a-d09bc07c67d7"
+   },
+   "reason": "OperationStarted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14192",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated sync status:  -> OutOfSync",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-stage.18e441c906b3df18",
+    "namespace": "argocd",
+    "resourceVersion": "1136",
+    "uid": "2f2f09a5-f958-4554-ab42-4b64164c558c"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14192",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated health status:  -> Missing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "guestbook-stage.18e441c90701033b",
+    "namespace": "argocd",
+    "resourceVersion": "1138",
+    "uid": "7a36f42a-efba-40d9-8034-48168365549c"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14244",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated health status: Missing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-stage.18e441c9426452ab",
+    "namespace": "argocd",
+    "resourceVersion": "1150",
+    "uid": "436218c8-1079-422b-aff7-004a6ea554f4"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14244",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Sync operation to 8088f4c0d970abb09e250248cc97e35623447cb5 succeeded",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-stage.18e441c94350df7b",
+    "namespace": "argocd",
+    "resourceVersion": "1152",
+    "uid": "562ec123-f09f-4ef4-ad2f-bbb4777d07cd"
+   },
+   "reason": "OperationCompleted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14285",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated sync status: OutOfSync -> Synced",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-stage.18e441c94b44f3d8",
+    "namespace": "argocd",
+    "resourceVersion": "1157",
+    "uid": "74267900-d219-4512-b41c-bd79523cc448"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14285",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated health status: Healthy -> Progressing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "guestbook-stage.18e441c94b9965a8",
+    "namespace": "argocd",
+    "resourceVersion": "1158",
+    "uid": "5b3187d4-8cb8-4e14-97b7-58dfb4d3723b"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:42Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook-stage",
+    "namespace": "argocd",
+    "resourceVersion": "14291",
+    "uid": "57193112-dc52-4999-ac5a-786fab0cd0b7"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:42Z",
+   "message": "Updated health status: Progressing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "guestbook-stage",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:42Z",
+    "name": "guestbook-stage.18e441d20f5681e9",
+    "namespace": "argocd",
+    "resourceVersion": "1169",
+    "uid": "089eacc9-1f11-4a30-8f7a-861f85b91e87"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:21Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12462",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:21Z",
+   "message": "Initiated automated sync to '8088f4c0d970abb09e250248cc97e35623447cb5'",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:21Z",
+    "name": "guestbook.18e44187748d7ca5",
+    "namespace": "argocd",
+    "resourceVersion": "1049",
+    "uid": "b41afdbb-179c-41f9-a773-eb929373d9a1"
+   },
+   "reason": "OperationStarted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:21Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12462",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:21Z",
+   "message": "Updated sync status:  -> OutOfSync",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:21Z",
+    "name": "guestbook.18e4418774c8a378",
+    "namespace": "argocd",
+    "resourceVersion": "1050",
+    "uid": "88794593-52a8-40d2-9938-9642d4043dd6"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:21Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12462",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:21Z",
+   "message": "Updated health status:  -> Missing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:21Z",
+    "name": "guestbook.18e4418775541917",
+    "namespace": "argocd",
+    "resourceVersion": "1051",
+    "uid": "88152d1c-2d60-442d-8c84-d123609a27bc"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12520",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Sync operation to 8088f4c0d970abb09e250248cc97e35623447cb5 succeeded",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook.18e441879177b588",
+    "namespace": "argocd",
+    "resourceVersion": "1056",
+    "uid": "9deda70a-c279-4742-9c1e-4ee356afba21"
+   },
+   "reason": "OperationCompleted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12539",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Updated sync status: OutOfSync -> Synced",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook.18e4418794d2ca86",
+    "namespace": "argocd",
+    "resourceVersion": "1059",
+    "uid": "b709bda4-5a9a-4e42-9060-beac3933089f"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12539",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Updated health status: Missing -> Progressing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook.18e441879500507c",
+    "namespace": "argocd",
+    "resourceVersion": "1060",
+    "uid": "67cbeaa3-4bf0-4970-9f6e-3810b7c6d3bc"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:43:22Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "12546",
+    "uid": "20975e3f-1ff8-4018-8100-2de6a955ed8c"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:43:22Z",
+   "message": "Updated health status: Progressing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "argo-demo",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:43:22Z",
+    "name": "guestbook.18e44187c427f76c",
+    "namespace": "argocd",
+    "resourceVersion": "1068",
+    "uid": "980c9fbf-fa10-4579-aaec-c1b8fcae3258"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:02Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14189",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:02Z",
+   "message": "Initiated automated sync to '8088f4c0d970abb09e250248cc97e35623447cb5'",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:02Z",
+    "name": "team-a-guestbook.18e441c8e5fe9347",
+    "namespace": "argocd",
+    "resourceVersion": "1126",
+    "uid": "4358fd3f-d25f-4e27-91f6-a7029ce92fd6"
+   },
+   "reason": "OperationStarted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:02Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14189",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:02Z",
+   "message": "Updated sync status:  -> OutOfSync",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:02Z",
+    "name": "team-a-guestbook.18e441c8e638210f",
+    "namespace": "argocd",
+    "resourceVersion": "1127",
+    "uid": "2f243562-0d77-4d0e-ada4-c1329461927a"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:02Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14189",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:02Z",
+   "message": "Updated health status:  -> Missing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:02Z",
+    "name": "team-a-guestbook.18e441c8e66a338e",
+    "namespace": "argocd",
+    "resourceVersion": "1128",
+    "uid": "e624f6a0-a11e-49e5-ae51-7018a8ca95b8"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14203",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Sync operation to 8088f4c0d970abb09e250248cc97e35623447cb5 succeeded",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "team-a-guestbook.18e441c8fd92b9c8",
+    "namespace": "argocd",
+    "resourceVersion": "1131",
+    "uid": "abd42deb-86a2-4a8f-9ed1-787f36807cc0"
+   },
+   "reason": "OperationCompleted",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14215",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated sync status: OutOfSync -> Synced",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "team-a-guestbook.18e441c905cffd01",
+    "namespace": "argocd",
+    "resourceVersion": "1133",
+    "uid": "6ec30353-274a-4099-8108-dc3b7fe15d95"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:03Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14215",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:03Z",
+   "message": "Updated health status: Missing -> Progressing",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "name": "team-a-guestbook.18e441c90639ff80",
+    "namespace": "argocd",
+    "resourceVersion": "1134",
+    "uid": "5f833822-820b-4149-8692-41ca71a55da2"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  },
+  {
+   "apiVersion": "v1",
+   "count": 1,
+   "eventTime": null,
+   "firstTimestamp": "2026-11-02T14:48:04Z",
+   "involvedObject": {
+    "apiVersion": "argoproj.io/v1alpha1",
+    "kind": "Application",
+    "name": "team-a-guestbook",
+    "namespace": "argocd",
+    "resourceVersion": "14227",
+    "uid": "6224765a-ebfd-4308-af5d-5eda40ec61c3"
+   },
+   "kind": "Event",
+   "lastTimestamp": "2026-11-02T14:48:04Z",
+   "message": "Updated health status: Progressing -> Healthy",
+   "metadata": {
+    "annotations": {
+     "dest-namespace": "team-a-web",
+     "dest-server": "https://kubernetes.default.svc"
+    },
+    "creationTimestamp": "2026-11-02T14:48:04Z",
+    "name": "team-a-guestbook.18e441c94ae2d73c",
+    "namespace": "argocd",
+    "resourceVersion": "1154",
+    "uid": "d41c4203-7585-4945-ab4d-f8b59f11a6aa"
+   },
+   "reason": "ResourceUpdated",
+   "reportingComponent": "",
+   "reportingInstance": "",
+   "source": {
+    "component": "argocd-application-controller"
+   },
+   "type": "Normal"
+  }
+ ],
+ "kind": "List",
+ "metadata": {
+  "resourceVersion": ""
+ }
+}

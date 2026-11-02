@@ -1,0 +1,67 @@
+{
+ "apiVersion": "v1",
+ "items": [
+  {
+   "apiVersion": "source.toolkit.fluxcd.io/v1",
+   "kind": "OCIRepository",
+   "metadata": {
+    "annotations": {},
+    "creationTimestamp": "2026-11-02T14:48:03Z",
+    "finalizers": [
+     "finalizers.fluxcd.io"
+    ],
+    "generation": 1,
+    "name": "podinfo-oci",
+    "namespace": "flux-system",
+    "resourceVersion": "14314",
+    "uid": "c92e3460-ba88-4fc7-8ec6-44c84bc90725"
+   },
+   "spec": {
+    "interval": "10m",
+    "ref": {
+     "tag": "latest"
+    },
+    "url": "oci://ghcr.io/stefanprodan/manifests/podinfo"
+   },
+   "status": {
+    "artifact": {
+     "digest": "sha256:a1943a1b95e40db44153d6a58bd38406ca70c11ff409f6f9f7d60fe099bc26c0",
+     "lastUpdateTime": "2026-11-02T14:48:05Z",
+     "metadata": {
+      "org.opencontainers.image.created": "2026-10-26T21:27:59Z",
+      "org.opencontainers.image.revision": "6.17.0@sha1:fd3a834ed8d14b80ea334cf8a2fddd4597924da6",
+      "org.opencontainers.image.source": "https://github.com/stefanprodan/podinfo"
+     },
+     "path": "ocirepository/flux-system/podinfo-oci/sha256:3a5e82b1f4cbceb48d54cc169c061990e57016a6deac87d0176a02820759aeeb.tar.gz",
+     "revision": "latest@sha256:3a5e82b1f4cbceb48d54cc169c061990e57016a6deac87d0176a02820759aeeb",
+     "size": 1127,
+     "url": "http://source-controller.flux-system.svc.cluster.local./ocirepository/flux-system/podinfo-oci/sha256:3a5e82b1f4cbceb48d54cc169c061990e57016a6deac87d0176a02820759aeeb.tar.gz"
+    },
+    "conditions": [
+     {
+      "lastTransitionTime": "2026-11-02T14:48:05Z",
+      "message": "stored artifact for digest 'latest@sha256:3a5e82b1f4cbceb48d54cc169c061990e57016a6deac87d0176a02820759aeeb'",
+      "observedGeneration": 1,
+      "reason": "Succeeded",
+      "status": "True",
+      "type": "Ready"
+     },
+     {
+      "lastTransitionTime": "2026-11-02T14:48:05Z",
+      "message": "stored artifact for digest 'latest@sha256:3a5e82b1f4cbceb48d54cc169c061990e57016a6deac87d0176a02820759aeeb'",
+      "observedGeneration": 1,
+      "reason": "Succeeded",
+      "status": "True",
+      "type": "ArtifactInStorage"
+     }
+    ],
+    "observedGeneration": 1,
+    "url": "http://source-controller.flux-system.svc.cluster.local./ocirepository/flux-system/podinfo-oci/latest.tar.gz"
+   }
+  }
+ ],
+ "kind": "List",
+ "metadata": {
+  "resourceVersion": ""
+ }
+}

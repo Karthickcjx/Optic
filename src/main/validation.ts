@@ -14,7 +14,9 @@ const namePattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const name = z.string().min(1).max(253).regex(namePattern);
 const id = z.string().uuid();
 const custom = z.object({ apiVersion: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?$/), kind: name, plural: name, namespaced: z.boolean() });
-const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional() });
+// Field selectors narrow lists and watches server-side (for example events of one API group); plain key=value terms only.
+const fieldSelector = z.string().max(512).regex(/^[A-Za-z0-9.\-_/]+!?=[A-Za-z0-9.\-_/:]*(,[A-Za-z0-9.\-_/]+!?=[A-Za-z0-9.\-_/:]*)*$/);
+const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional(), fieldSelector: fieldSelector.optional() });
 // Kubernetes validates RBAC object names as path segments (e.g. system:controller:*, eks:*): any characters
 // except "/" and "%", and never "." or "..". Control characters are also refused. Other kinds keep their pattern.
 const rbacKinds: readonly string[] = ['roles', 'rolebindings', 'clusterroles', 'clusterrolebindings'];
@@ -81,7 +83,8 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'helm:uninstall': helmTarget,
   'settings:get': z.object({ clusterId: text }), 'settings:save': z.object({ clusterId: text, settings: clusterSettingsSchema }),
   'settings:directory': z.undefined(), 'settings:reveal': z.object({ clusterId: text }),
-  'mcp:access': z.object({ clusterId: text }), 'mcp:access-set': z.object({ clusterId: text, approved: z.boolean() }),
+  'gitops:detect': z.object({ clusterId: text }), 'gitops:argo-url': z.object({ clusterId: text, namespace: name }),
+  'gitops:open-argo': z.object({ clusterId: text, namespace: name, application: z.object({ namespace: name, name }).optional() }), 'mcp:access': z.object({ clusterId: text }), 'mcp:access-set': z.object({ clusterId: text, approved: z.boolean() }),
   'clusters:connect': z.object({ clusterId: text }), 'clusters:disconnect': z.object({ clusterId: text }),
   'cost:report': z.object({ clusterId: text, start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), group: z.enum(['namespace', 'node', 'controller']), includeIdle: z.boolean(), forceRefresh: z.boolean().optional() }).refine(v => v.start < v.end && v.end - v.start <= 31 * 86400000 && v.end <= Date.now() + 60000, 'Choose a past range up to 31 days.'),
   'cost:read': z.object({ clusterId: text }), 'monitoring:status': z.object({ clusterId: text }),

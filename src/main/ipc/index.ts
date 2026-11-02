@@ -27,6 +27,7 @@ import { schemas } from '../validation';
 import { AppError, fault } from '../errors';
 import { ForwardService } from '../forward';
 import { accessPath, accessState, setAccess } from '../../mcp/access';
+import { argoApplicationUrl, argoUrl, detectGitOps } from '../gitops';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const eks = new EksDiscovery();
@@ -113,6 +114,10 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'settings:save': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
     'settings:directory': async () => { const result = await dialog.showOpenDialog({ title: 'Terminal working directory', properties: ['openDirectory'] }); return result.canceled ? undefined : result.filePaths[0]; },
     'settings:reveal': input => shell.showItemInFolder(clusters.get(input.clusterId, true).cluster.source),
+    'gitops:detect': input => detectGitOps(clusters.get(input.clusterId).config),
+    'gitops:argo-url': async input => ({ url: await argoUrl(clusters.get(input.clusterId).config, input.namespace) }),
+    // The address is re-read from the cluster here; the renderer only names the Application to open.
+    'gitops:open-argo': async input => { const base = await argoUrl(clusters.get(input.clusterId).config, input.namespace); if (!base) throw new AppError('UNAVAILABLE', 'Argo CD does not publish its address (argocd-cm data.url).'); await shell.openExternal(argoApplicationUrl(base, input.application)); },
     'mcp:access': input => accessState(input.clusterId, clusters.get(input.clusterId, true).config, mcpAccessFile, mcpLaunch),
     'mcp:access-set': input => { const { cluster, config } = clusters.get(input.clusterId, true); setAccess(input.clusterId, cluster, config, input.approved, mcpAccessFile); return accessState(input.clusterId, config, mcpAccessFile, mcpLaunch); },
     'clusters:connect': input => clusters.connect(input.clusterId),
