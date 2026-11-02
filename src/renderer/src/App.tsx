@@ -30,6 +30,8 @@ function Welcome({ onImport, onClipboard }: { onImport: () => void; onClipboard:
   const { clusters, navigate, selectCluster, openTab } = useStore();
   return <div className="welcome-page"><div className="welcome-brand"><img className="welcome-logo" src={appLogo} alt="Application logo"/><h1>Optic</h1></div><h2>Your Kubernetes workspace</h2><div className="welcome-columns"><section><h3>Start</h3><button onClick={onClipboard}><FileCode2 size={17}/>Add kubeconfig from clipboard…</button><button onClick={onImport}><FolderOpen size={17}/>Add kubeconfig from filesystem…</button><button onClick={() => navigate('settings')}><Settings size={17}/>Manage cluster connections…</button><button onClick={() => openTab({ type: 'terminal', title: 'Terminal', options: { cols: 100, rows: 24 } })}><TerminalSquare size={17}/>Open a local terminal…</button>{!!clusters.length && <button onClick={() => selectCluster(clusters[0].id)}><LayoutDashboard size={17}/>Open cluster overview…</button>}</section><section><h3>Recent contexts</h3>{clusters.length ? clusters.slice(0, 6).map(c => <button key={c.id} onClick={() => selectCluster(c.id)}><Hexagon size={15}/>{c.name}</button>) : <p>Import your kubeconfig to connect.<br/>Files in <code>~/.kube/config</code> and <code>KUBECONFIG</code> are discovered automatically.</p>}</section></div><div className="welcome-note"><ShieldNote/> Credentials are kept on your computer. Resource changes always use the selected context.</div></div>;
 }
+// Escape typed into a text field belongs to that field; it must not close Details and discard its edits.
+const editable = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 function ShieldNote() { return <span className="small-dot"/>; }
 function Preferences({ onImport, onClipboard }: { onImport: () => void; onClipboard: () => void }) {
   const [section, setSection] = useState('connections');
@@ -56,7 +58,7 @@ export function App() {
   const reload = async (importFile = false) => { try { const result = await request(importFile ? 'clusters:import' : 'clusters:list', undefined); store.setClusters(result.clusters); setWarnings(result.warnings); await Promise.all(result.clusters.map(async cluster => { const settings = await request('settings:get', { clusterId: cluster.id }); store.setClusterSettings(cluster.id, settings); })); setConnectionRevision(v => v + 1); } catch (e) { store.notify((e as Error).message); } };
   useEffect(() => { void reload(); }, []);
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(v => !v); } if (e.key === 'Escape') { setPalette(false); setManifest(false); store.select(undefined); } };
+    const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(v => !v); } if (e.key === 'Escape') { setPalette(false); setManifest(false); if (!editable(e.target)) store.select(undefined); } };
     document.addEventListener('keydown', key); return () => document.removeEventListener('keydown', key);
   }, []);
   useEffect(() => {

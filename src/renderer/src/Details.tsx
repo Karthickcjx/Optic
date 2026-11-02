@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { FileText, Play, RotateCw, Save, TerminalSquare, Trash2, X } from 'lucide-react';
 import type { Resource, Target } from '../../shared/protocol';
 import { request } from './api';
-import { useStore } from './store';
+import { discardYaml, useStore } from './store';
 import { Status } from './Table';
 import { useResources } from './hooks';
 
@@ -18,6 +18,10 @@ export function Details({ resource }: { resource: Resource }) {
   const clusterId = useStore(s => s.clusterId), kind = useStore(s => s.kind), select = useStore(s => s.select), openTab = useStore(s => s.openTab), notify = useStore(s => s.notify);
   const [tab, setTab] = useState('Overview'); const [yaml, setYaml] = useState(''); const [busy, setBusy] = useState(false); const [confirm, setConfirm] = useState<'delete' | 'restart' | 'save' | 'scale' | 'cordon' | 'nodeshell'>();
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(''); const setDetailsDirty = useStore(s => s.setDetailsDirty);
+  const dirty = tab === 'YAML' && yaml !== loaded;
+  useEffect(() => { setDetailsDirty(dirty); }, [dirty]);
+  useEffect(() => () => setDetailsDirty(false), []);
   const [action, setAction] = useState<ResourceAction>();
   const [editor, setEditor] = useState(false);
   const [forward, setForward] = useState(false), [localPort, setLocalPort] = useState(0), [remotePort, setRemotePort] = useState<number>(resource.spec?.ports?.[0]?.port ?? resource.spec?.containers?.[0]?.ports?.[0]?.containerPort ?? 8080);
@@ -26,8 +30,8 @@ export function Details({ resource }: { resource: Resource }) {
   const target: Target = { clusterId, kind, custom, namespace: resource.metadata.namespace, name: resource.metadata.name! };
   const events = useResources(tab === 'Events' ? clusterId : '', 'events', resource.metadata.namespace);
   useEffect(() => {
-    let active = true; setYaml(''); setError('');
-    if (tab === 'YAML') void request('resources:yaml', target).then(value => { if (active) setYaml(value); }).catch(e => { if (active) setError(e.message); });
+    let active = true; setYaml(''); setLoaded(''); setError('');
+    if (tab === 'YAML') void request('resources:yaml', target).then(value => { if (active) { setYaml(value); setLoaded(value); } }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [resource.metadata.uid, tab, clusterId]);
   const run = async () => {
@@ -36,14 +40,14 @@ export function Details({ resource }: { resource: Resource }) {
       if (confirm === 'nodeshell') openTab({ type: 'terminal', title: `Node / ${target.name}`, options: { clusterId, node: target.name, cols: 100, rows: 24 } });
       if (confirm === 'scale') await request('resources:scale', { ...target, replicas: Number(replicas) });
       if (confirm === 'cordon') await request('nodes:cordon', { clusterId, name: target.name, unschedulable: !resource.spec?.unschedulable });
-      if (confirm === 'save') await request('resources:replace', { ...target, yaml });
-      if (confirm === 'delete') { await request('resources:delete', target); select(undefined); }
+      if (confirm === 'save') { await request('resources:replace', { ...target, yaml }); setLoaded(yaml); }
+      if (confirm === 'delete') { await request('resources:delete', target); setDetailsDirty(false); select(undefined); }
       if (confirm === 'restart') await request('resources:restart', target);
       setConfirm(undefined);
     } catch (e) { notify((e as Error).message); } finally { setBusy(false); }
   };
   const open = (type: 'logs' | 'terminal', container: string) => openTab({ type, title: `${resource.metadata.name} / ${container}`, options: { clusterId, namespace: resource.metadata.namespace!, pod: resource.metadata.name!, container, cols: 100, rows: 24 } });
-  return <aside className="details"><header><span className="eyebrow">{resource.kind} DETAILS</span><button title="Close details" onClick={() => select(undefined)}><X size={18}/></button></header><h2>{resource.metadata.name}</h2><Status resource={resource}/><div className="detail-tabs">{['Overview', 'Related', ...((metricWorkloads as readonly string[]).includes(kind) ? ['Metrics'] : []), 'YAML', ...(kind !== 'events' ? ['Events'] : [])].map(name => <button className={tab === name ? 'active' : ''} key={name} onClick={() => setTab(name)}>{name}</button>)}</div>
+  return <aside className="details"><header><span className="eyebrow">{resource.kind} DETAILS</span><button title="Close details" onClick={() => select(undefined)}><X size={18}/></button></header><h2>{resource.metadata.name}</h2><Status resource={resource}/><div className="detail-tabs">{['Overview', 'Related', ...((metricWorkloads as readonly string[]).includes(kind) ? ['Metrics'] : []), 'YAML', ...(kind !== 'events' ? ['Events'] : [])].map(name => <button className={tab === name ? 'active' : ''} key={name} onClick={() => { if (name !== tab && dirty && !window.confirm(discardYaml)) return; setTab(name); }}>{name}</button>)}</div>
     <div className="detail-content">{error && <div className="inline-error">{error}</div>}
     {tab === 'Overview' && <><dl><dt>Namespace</dt><dd>{resource.metadata.namespace ?? 'Cluster-wide'}</dd><dt>Created</dt><dd>{resource.metadata.creationTimestamp ? new Date(resource.metadata.creationTimestamp).toLocaleString() : '—'}</dd><dt>UID</dt><dd className="mono">{resource.metadata.uid}</dd></dl>{kind === 'nodes' && <dl><dt>Scheduling</dt><dd>{resource.spec?.unschedulable ? 'Cordoned' : 'Enabled'}</dd><dt>Kubelet</dt><dd>{resource.status?.nodeInfo?.kubeletVersion}</dd><dt>Addresses</dt><dd>{resource.status?.addresses?.map((a: any) => a.address).join(', ')}</dd></dl>}{kind === 'services' && <dl><dt>Cluster IP</dt><dd>{resource.spec?.clusterIP}</dd><dt>Ports</dt><dd>{resource.spec?.ports?.map((p: any) => `${p.port}/${p.protocol} to ${p.targetPort}`).join(', ')}</dd></dl>}{kind === 'customresourcedefinitions' && <><h3>Browse custom resources</h3>{resource.spec?.versions?.filter((v: any) => v.served).map((v: any) => <button key={v.name} onClick={() => navigate('custom', clusterId, { apiVersion: `${resource.spec?.group}/${v.name}`, kind: resource.spec?.names.kind, plural: resource.spec?.names.plural, namespaced: resource.spec?.scope === 'Namespaced' })}>{resource.spec?.names.kind} / {v.name}</button>)}</>}<ResourceProperties resource={resource}/><h3>Labels</h3><div className="labels">{Object.entries(resource.metadata.labels ?? {}).map(([key, value]) => <span key={key}>{key}: {value}</span>)}</div>{kind === 'pods' && <><h3>Containers</h3>{[...(resource.spec?.containers ?? []), ...(resource.spec?.initContainers ?? []), ...(resource.spec?.ephemeralContainers ?? [])].map((container: any) => <div className="container-card" key={container.name}><strong><Play size={13}/>{container.name}</strong><code>{container.image}</code><ContainerProperties container={container} category={resource.spec?.initContainers?.some((c: any) => c.name === container.name) ? 'Init' : resource.spec?.ephemeralContainers?.some((c: any) => c.name === container.name) ? 'Ephemeral' : 'Application'} status={[...(resource.status?.containerStatuses ?? []), ...(resource.status?.initContainerStatuses ?? []), ...(resource.status?.ephemeralContainerStatuses ?? [])].find((s: any) => s.name === container.name)}/><div><button onClick={() => open('logs', container.name)}><FileText size={14}/>Logs</button><button onClick={() => open('terminal', container.name)}><TerminalSquare size={14}/>Shell</button></div></div>)}</>}</>}
     {tab === 'Metrics' && <ResourceMetrics resource={resource} target={target}/>}

@@ -177,6 +177,22 @@ try {
       for (let n = 0; n < 100 && !/[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/.test(output.join('')); n++) await new Promise(resolve => setTimeout(resolve, 50));
       return { opened, text: output.join('') };
     } finally { dispose(); await window.desktop.request('stream:close', { id }); }
+  // Unsaved YAML edits survive Escape in the editor; closing or Escape elsewhere asks first, and dismissing keeps them.
+  const yamlEditor = page.getByLabel('Resource YAML'), originalYaml = await yamlEditor.inputValue(), prompts = [];
+  const keepEdits = dialog => { prompts.push(dialog.message()); void dialog.dismiss(); };
+  page.on('dialog', keepEdits);
+  await yamlEditor.fill(`${originalYaml}# unsaved edit
+`);
+  await yamlEditor.press('Escape');
+  await expect(yamlEditor).toHaveValue(/# unsaved edit/);
+  await page.getByTitle('Close details', { exact: true }).click();
+  await page.locator('.details h2').click(); await page.keyboard.press('Escape');
+  await expect(yamlEditor).toHaveValue(/# unsaved edit/);
+  await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(yamlEditor).toHaveValue(/# unsaved edit/);
+  assert.deepEqual(prompts, ['Discard unsaved YAML changes?', 'Discard unsaved YAML changes?', 'Discard unsaved YAML changes?']);
+  await yamlEditor.fill(originalYaml);
+  page.off('dialog', keepEdits);
   });
   assert.equal(result.opened.ok, true, JSON.stringify(result)); assert.match(result.text, /[\r\n]WORKBENCH_PTY_OK(?:\r?\n|\x1b)/);
   await page.locator('.detail-tabs').getByRole('button', { name: 'Overview', exact: true }).click();

@@ -17,6 +17,8 @@ interface State {
   setNamespace: (namespace: string) => void; setKind: (kind: ResourceKind) => void;
   navigate: (view: View, clusterId?: string, custom?: CustomType) => void; activatePage: (id: string) => void; closePage: (id: string) => void;
   select: (resource?: Resource) => void; notify: (message?: string) => void;
+  // Set while the Details YAML editor holds unsaved edits; select() asks before discarding them.
+  detailsDirty: boolean; setDetailsDirty: (dirty: boolean) => void;
   openTab: (tab: Omit<DockTab, 'id'>) => void; closeTab: (id: string) => void; activateTab: (id: string) => void; toggleDock: () => void;
 }
 const welcome: WorkspaceTab = { id: 'welcome', view: 'welcome', clusterId: '', namespace: '' };
@@ -28,6 +30,7 @@ export function pageTitle(page: WorkspaceTab, clusters: Cluster[]) {
   return `${title} — ${clusters.find(c => c.id === page.clusterId)?.name ?? 'Cluster'}`;
 }
 function readPreferences(): State['preferences'] { try { const saved = JSON.parse(localStorage.getItem('cluster-preferences') ?? '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; } catch { return {}; } }
+export const discardYaml = 'Discard unsaved YAML changes?';
 export const useStore = create<State>((set, get) => ({
   clusterSettings: {}, revision: 0,
   setClusterSettings: (id, settings, resetSessions = false) => { set(s => ({ clusterSettings: { ...s.clusterSettings, [id]: settings }, revision: s.revision + (resetSessions ? 1 : 0), tabs: resetSessions ? s.tabs.filter(t => t.options.clusterId !== id) : s.tabs })); get().setPreference(id, { label: settings.displayName, color: settings.color }); },
@@ -53,7 +56,8 @@ export const useStore = create<State>((set, get) => ({
     const state = get(); let pages = state.pages.filter(p => p.id !== id); if (!pages.length) pages = [welcome];
     set({ pages }); if (state.activePage === id) get().activatePage(pages.at(-1)!.id);
   },
-  select: selected => set({ selected }), notify: error => set({ error }), toggleDock: () => set(s => ({ dockCollapsed: !s.dockCollapsed })),
+  select: selected => { const current = get(), other = selected?.metadata.uid !== current.selected?.metadata.uid; if (other && current.detailsDirty && !window.confirm(discardYaml)) return; set({ selected, ...(other ? { detailsDirty: false } : {}) }); },
+  detailsDirty: false, setDetailsDirty: detailsDirty => set({ detailsDirty }), notify: error => set({ error }), toggleDock: () => set(s => ({ dockCollapsed: !s.dockCollapsed })),
   openTab: tab => set(state => { const id = crypto.randomUUID(); return { tabs: [...state.tabs, { ...tab, id }], activeTab: id, dockCollapsed: false }; }),
   closeTab: id => set(state => { const tabs = state.tabs.filter(t => t.id !== id); return { tabs, activeTab: state.activeTab === id ? tabs.at(-1)?.id : state.activeTab }; }),
   activateTab: activeTab => set({ activeTab, dockCollapsed: false })
