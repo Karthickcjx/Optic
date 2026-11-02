@@ -58,7 +58,7 @@ Subscription procedure:
 
 Caches are per subscription in this release; they are not yet shared across identical scopes. Paginated list requests are cancelled on disposal and have bounded HTTP timeouts. Disposal prevents late results from opening watches or updating the UI. Namespace RBAC failure is displayed independently of namespaced resource access. Users can reload configuration and retry after credentials change.
 
-YAML replaces retain API version, kind, namespace, name and resourceVersion. A replacement cannot redirect to a different object. Status is excluded from replacement. Kubernetes optimistic concurrency rejects stale edits. Delete, restart and YAML save require an explicit UI confirmation. Rollout restart supports Deployments, StatefulSets and DaemonSets. Replica controllers expose confirmed scaling; Nodes expose confirmed cordon/uncordon. Manifest creation uses API discovery and server-side apply: the UI requires a successful dry run before enabling Apply, and edits invalidate validation. Secret values are removed from snapshots and unavailable for YAML viewing/editing.
+YAML replaces retain API version, kind, namespace, name and resourceVersion. A replacement cannot redirect to a different object. Status is excluded from replacement. Kubernetes optimistic concurrency rejects stale edits. Delete, restart and YAML save require an explicit UI confirmation. Rollout restart supports Deployments, StatefulSets and DaemonSets. Replica controllers expose confirmed scaling; Nodes expose confirmed cordon/uncordon. Manifest creation uses API discovery and server-side apply with the `optic` field manager, which Import and Deploy shares: the UI requires a successful dry run before enabling Apply, and edits invalidate validation. The dialog applies one YAML document. When another field manager owns a field, the server's conflict is shown and the user can opt in to override it (server-side apply `force`); applying with override needs a confirmation. Secret values are removed from snapshots and unavailable for YAML viewing/editing.
 
 ## Complete application IPC protocol
 
@@ -102,7 +102,7 @@ Common types:
 | `clusters:import-clipboard` | {yaml} | {clusters,warnings}; validates submitted editor text and persists a private profile kubeconfig |
 | `clusters:import` | undefined | Native file picker; persisted source references; {clusters,warnings} |
 | `metrics:read` | {clusterId} | {nodes,pods,warning?,source?}; selected metrics provider |
-| `resources:apply` | {clusterId,namespace?,yaml,dryRun} | {name,kind,namespace?}; discovery + server-side apply |
+| `resources:apply` | {clusterId,namespace?,yaml,dryRun,force?} | {name,kind,namespace?}; discovery + server-side apply |
 | `resources:scale` | Target + {replicas} | void; scale subresource merge patch |
 | `nodes:cordon` | {clusterId,name,unschedulable} | void; scheduling merge patch |
 | `clusters:health` | `{clusterId}` | `{version,latencyMs}` |

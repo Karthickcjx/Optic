@@ -94,7 +94,7 @@ export interface Requests {
   'metrics:resource': { input: ResourceMetricRequest; output: ResourceMetricResult };
   'metrics:history': { input: { clusterId: string; minutes: number }; output: OverviewHistory };
   'metrics:read': { input: { clusterId: string }; output: { nodes: Resource[]; pods: Resource[]; warning?: string; source?: string } };
-  'resources:apply': { input: { clusterId: string; namespace?: string; yaml: string; dryRun: boolean }; output: { name: string; kind: string; namespace?: string } };
+  'resources:apply': { input: { clusterId: string; namespace?: string; yaml: string; dryRun: boolean; force?: boolean }; output: { name: string; kind: string; namespace?: string } };
   'resources:scale': { input: Target & { replicas: number }; output: void };
   'nodes:cordon': { input: { clusterId: string; name: string; unschedulable: boolean }; output: void };
   'clusters:list': { input: undefined; output: { clusters: Cluster[]; warnings: string[] } };

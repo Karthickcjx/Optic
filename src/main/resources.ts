@@ -5,8 +5,9 @@ import { z } from 'zod';
 import { catalog } from '../shared/catalog';
 import type { ClusterManager } from './clusters';
 import type { Resource, Scope, Target } from '../shared/protocol';
-import { AppError } from './errors';
+import { AppError, fault } from './errors';
 import { kubeJson } from './kube-http';
+import { fieldManager } from './field-manager';
 
 export const definitions = catalog;
 export function definition(scope: Scope) {
@@ -150,8 +151,14 @@ export class ResourceService {
   async cordon(clusterId: string, name: string, unschedulable: boolean) {
     await kubeJson(this.config(clusterId), `/api/v1/nodes/${encodeURIComponent(name)}`, { method: 'PATCH', contentType: 'application/merge-patch+json', body: { spec: { unschedulable } } });
   }
-  async apply(clusterId: string, yaml: string, namespace: string | undefined, dryRun: boolean) {
-    const document = parse(yaml, { maxAliasCount: 50 });
+  async apply(clusterId: string, yaml: string, namespace: string | undefined, dryRun: boolean, force = false) {
+    let document;
+    try { document = parse(yaml, { maxAliasCount: 50 }); }
+    catch (error) {
+      const { code, linePos } = error as { code?: string; linePos?: { line: number }[] };
+      if (code === 'MULTIPLE_DOCS') throw new AppError('MULTIPLE_DOCUMENTS', 'Create resource applies one YAML document. Remove extra "---" separators, or use Import files / chart… for multi-document YAML.');
+      throw new AppError('INVALID_RESOURCE', `The manifest is not valid YAML${linePos?.[0] ? ` (line ${linePos[0].line})` : ''}. Check its indentation and syntax.`);
+    }
     const identity = z.object({ apiVersion: z.string().regex(/^(?:v1|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?)$/), kind: z.string().regex(/^[A-Za-z][A-Za-z0-9]+$/), metadata: z.object({ name: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/).max(253), namespace: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(63).optional() }) }).safeParse(document);
     if (!identity.success) throw new AppError('INVALID_RESOURCE', 'Provide one manifest with apiVersion, kind and metadata.name.');
     const info = identity.data;
@@ -163,8 +170,12 @@ export class ResourceService {
     if (descriptor.namespaced) document.metadata.namespace = ns; else delete document.metadata.namespace;
     delete document.status; delete document.metadata.managedFields;
     const path = `${root}${descriptor.namespaced ? `/namespaces/${encodeURIComponent(ns)}` : ''}/${encodeURIComponent(descriptor.name)}/${encodeURIComponent(info.metadata.name)}`;
-    const query = new URLSearchParams({ fieldManager: 'cluster-workbench', ...(dryRun ? { dryRun: 'All' } : {}) });
-    await kubeJson(this.config(clusterId), `${path}?${query}`, { method: 'PATCH', contentType: 'application/apply-patch+yaml', body: document });
+    const query = new URLSearchParams({ fieldManager, ...(dryRun ? { dryRun: 'All' } : {}), ...(force ? { force: 'true' } : {}) });
+    try { await kubeJson(this.config(clusterId), `${path}?${query}`, { method: 'PATCH', contentType: 'application/apply-patch+yaml', body: document }); }
+    catch (error) {
+      if ((error as { fieldConflict?: boolean }).fieldConflict) throw new AppError('APPLY_CONFLICT', `${fault(error).message} Another field manager owns these fields. Select "Override field conflicts" to take ownership of them.`);
+      throw error;
+    }
     return { name: info.metadata.name, kind: info.kind, namespace: descriptor.namespaced ? ns : undefined };
   }
   async metrics(clusterId: string) {

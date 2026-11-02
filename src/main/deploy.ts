@@ -7,6 +7,7 @@ import { Agent, fetch as secureFetch } from 'undici';
 import { parse, parseAllDocuments, stringify } from 'yaml';
 import { AppError, fault } from './errors';
 import { kubeJson } from './kube-http';
+import { fieldManager } from './field-manager';
 import type { ClusterManager } from './clusters';
 import { Imports, inspectArchive } from './imports';
 import type { DeployInput, DeployOperation, DeployPreview, DeployRow, RemoteChart } from '../shared/deploy';
@@ -221,7 +222,7 @@ export class Deployments {
     operation.canStop = !plan.preview.chart;
     this.operations.set(id, operation); this.persist(); void this.run(plan, operation); return structuredClone(operation);
   }
-  private patch(clusterId: string, path: string, body: any, dryRun: boolean) { return kubeJson(this.clusters.get(clusterId).config, `${path}?fieldManager=optic-import${dryRun ? '&dryRun=All' : ''}`, { method: 'PATCH', contentType: 'application/apply-patch+yaml', body }); }
+  private patch(clusterId: string, path: string, body: any, dryRun: boolean) { return kubeJson(this.clusters.get(clusterId).config, `${path}?fieldManager=${fieldManager}${dryRun ? '&dryRun=All' : ''}`, { method: 'PATCH', contentType: 'application/apply-patch+yaml', body }); }
   private async ready(plan: Plan, entry: Entry) {
     for (let i = 0; i < 60; i++) {
       if (this.stopped) invalid('Optic is closing; reconcile cluster state before retrying.');

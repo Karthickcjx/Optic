@@ -125,7 +125,7 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'metrics:resource': input => resourceMetrics.read(input),
     'metrics:history': input => overviewMetrics.read(input.clusterId, input.minutes),
     'metrics:read': input => resources.metrics(input.clusterId),
-    'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun),
+    'resources:apply': input => resources.apply(input.clusterId, input.yaml, input.namespace, input.dryRun, input.force),
     'resources:scale': input => resources.scale(input, input.replicas),
     'nodes:cordon': input => { if (actions.isBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active resource action before changing node scheduling.'); return resources.cordon(input.clusterId, input.name, input.unschedulable); },
     'clusters:list': () => clusters.discover(), 'clusters:health': input => clusters.health(input.clusterId),
