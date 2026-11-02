@@ -142,7 +142,7 @@ Open a resource's **Related** tab to follow its owner chain, browse live related
 
 ## Resource actions and form editors
 
-Open a resource drawer to use these actions. Each confirmation shows the selected context and resource. Applying closes the dialog and reports running/success/failure through background notifications; switching tabs does not cancel an action. Keep Optic open until completion. Lists refresh after an action finishes.
+Open a resource drawer to use these actions. Each confirmation shows the selected context and resource. Applying closes the dialog and reports running/success/failure through background notifications; switching tabs does not cancel an action. Keep Optic open until completion. Lists show the resulting changes through their live watches; finishing an action does not reload them.
 
 - **Nodes → Drain:** review scheduled Pods, leave DaemonSet/mirror Pods running, and explicitly opt into deleting emptyDir data or evicting unmanaged Pods. Uses the selected context's kubectl with a bounded timeout and requires the eviction API; it does not disable eviction or bypass PodDisruptionBudgets. A completed or failed drain can leave the node cordoned. Uncordon after maintenance. Closing Optic stops the command and can leave a partial drain.
 - **Deployments → Rollback:** choose an earlier retained ReplicaSet revision and review its images. Only the Pod template is restored, without its generated pod-template-hash label; replicas and other Deployment fields are preserved. Ownership and resource-version checks reject replaced or concurrently changed resources. Paused Deployments must be resumed first. Success means the rollback was submitted, not that new Pods are already healthy.

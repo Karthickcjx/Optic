@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { Resource, ResourceKind } from '../../shared/protocol';
 import type { CustomType } from '../../shared/catalog';
-import { useResourceOperations } from './resource-operations';
 import { closeStream, request } from './api';
 export function useResources(clusterId: string, kind: ResourceKind, namespace?: string, custom?: CustomType) {
-  const actionRevision = useResourceOperations(s => s.revision);
   const [items, setItems] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [revision, setRevision] = useState(0);
+  // The watch delivers changes made by actions, so finishing one must not tear down and re-list every table.
   useEffect(() => {
     setItems([]); setError(undefined);
     if (!clusterId) { setLoading(false); return; }
@@ -21,6 +20,6 @@ export function useResources(clusterId: string, kind: ResourceKind, namespace?: 
     });
     void request('resources:watch', { id, clusterId, kind, namespace: namespace || undefined, custom }).catch(e => { if (active) { setError(e.message); setLoading(false); } });
     return () => { active = false; unsubscribe(); closeStream(id); };
-  }, [clusterId, kind, namespace, revision, actionRevision, custom?.apiVersion, custom?.plural]);
+  }, [clusterId, kind, namespace, revision, custom?.apiVersion, custom?.plural]);
   return { items, loading, error, refresh: () => setRevision(v => v + 1) };
 }

@@ -6,7 +6,10 @@ import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
 
 const temp = await mkdtemp(join(tmpdir(), 'optic-actions-smoke-'));
-const sockets = new Set(), requests = [];
+const sockets = new Set(), requests = [], watchers = new Map();
+// Like the API server, stream committed writes to open watches; the UI relies on them instead of re-listing after actions.
+const notify = (collection, type, object) => watchers.get(collection)?.forEach(res => res.write(`${JSON.stringify({ type, object })}
+`));
 const meta = (name, uid, extra = {}) => ({ name, uid, namespace: 'default', resourceVersion: '10', ...extra });
 const deployment = { apiVersion: 'apps/v1', kind: 'Deployment', metadata: meta('web', 'dep', { annotations: { 'deployment.kubernetes.io/revision': '2' } }), spec: { replicas: 2, selector: { matchLabels: { app: 'web' } }, template: { metadata: { labels: { app: 'web' } }, spec: { containers: [{ name: 'app', image: 'example/web:2', env: [{ name: 'PRESERVED', value: 'yes' }] }] } } } };
 const rs = (revision, image) => ({ apiVersion: 'apps/v1', kind: 'ReplicaSet', metadata: meta(`web-${revision}`, `rs-${revision}`, { annotations: { 'deployment.kubernetes.io/revision': String(revision) }, ownerReferences: [{ kind: 'Deployment', uid: 'dep', controller: true }] }), spec: { template: { metadata: { labels: { app: 'web', 'pod-template-hash': String(revision) } }, spec: { containers: [{ name: 'app', image }] } } } });
@@ -19,7 +22,11 @@ const resources = { deployments: [deployment], replicasets: [rs(1, 'example/web:
 function send(res, data, status = 200) { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); }
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  if (url.searchParams.has('watch')) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.flushHeaders(); return; }
+  if (url.searchParams.has('watch')) {
+    const collection = url.pathname.split('/').at(-1); if (!watchers.has(collection)) watchers.set(collection, new Set());
+    watchers.get(collection).add(res); req.on('close', () => watchers.get(collection).delete(res));
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.flushHeaders(); return;
+  }
   if (url.pathname === '/version') return send(res, { gitVersion: 'v1.36.0-test' });
   const segments = url.pathname.split('/'), name = segments.at(-1), collection = segments.at(-2);
   const list = resources[name], item = resources[collection]?.find(r => r.metadata.name === name);
@@ -35,12 +42,12 @@ const server = createServer(async (req, res) => {
       if (op.op === 'test' && parent[key] !== op.value) return send(res, { message: 'precondition failed' }, 422);
       if (op.op === 'add') parent[key] = op.value;
     }
-    if (!url.searchParams.has('dryRun')) { copy.metadata.resourceVersion = String(Number(copy.metadata.resourceVersion) + 1); Object.assign(item, copy); }
+    if (!url.searchParams.has('dryRun')) { copy.metadata.resourceVersion = String(Number(copy.metadata.resourceVersion) + 1); Object.assign(item, copy); notify(collection, 'MODIFIED', item); }
     return send(res, copy);
   }
   if (req.method === 'POST' && name === 'jobs') {
     if (resources.jobs.some(j => j.metadata.name === input.metadata.name)) return send(res, {}, 409);
-    input.metadata.uid = `job-${resources.jobs.length}`; input.metadata.resourceVersion = '1'; resources.jobs.push(input); return send(res, input, 201);
+    input.metadata.uid = `job-${resources.jobs.length}`; input.metadata.resourceVersion = '1'; resources.jobs.push(input); notify('jobs', 'ADDED', input); return send(res, input, 201);
   }
   if (item) return send(res, item);
   return send(res, { apiVersion: 'v1', kind: 'List', metadata: { resourceVersion: '10' }, items: list ?? [] });
@@ -65,10 +72,13 @@ try {
   await open('Deployments', 'web');
   await page.getByRole('button', { name: 'Rollback', exact: true }).click();
   await expect(page.getByLabel('Rollback revision')).toHaveValue('rs-1'); await capture('01-deployment-rollback');
+  const deploymentLists = () => requests.filter(r => r.method === 'GET' && r.path.endsWith('/deployments')).length, listsBefore = deploymentLists();
   await page.getByRole('button', { name: 'Confirm roll back deployment', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.resource-notification.succeeded')).toContainText('revision 1 submitted');
   assert.equal(deployment.spec.template.spec.containers[0].image, 'example/web:1'); assert.equal(deployment.spec.replicas, 2);
+  // Finishing an action keeps the table and its watch; it must not re-list.
+  await page.waitForTimeout(500); assert.equal(deploymentLists(), listsBefore); await expect(page.locator('tbody .resource-name').filter({ hasText: /^web$/ })).toHaveCount(1);
   await done();
 
   await open('Cron Jobs', 'backup');
