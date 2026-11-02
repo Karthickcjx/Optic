@@ -10,15 +10,21 @@ import { z } from 'zod';
 import { extensionId } from '../shared/extensions';
 import { resourceKinds, type Requests } from '../shared/protocol';
 const text = z.string().min(1).max(1024);
-const name = z.string().min(1).max(253).regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/);
+const namePattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+const name = z.string().min(1).max(253).regex(namePattern);
 const id = z.string().uuid();
 const custom = z.object({ apiVersion: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\/v[0-9]+(?:(?:alpha|beta)[0-9]+)?$/), kind: name, plural: name, namespaced: z.boolean() });
 const scope = z.object({ clusterId: text, kind: z.enum(resourceKinds), namespace: name.optional(), custom: custom.optional() });
-const target = scope.extend({ name });
+// Kubernetes validates RBAC object names as path segments (e.g. system:controller:*, eks:*): any characters
+// except "/" and "%", and never "." or "..". Control characters are also refused. Other kinds keep their pattern.
+const rbacKinds: readonly string[] = ['roles', 'rolebindings', 'clusterroles', 'clusterrolebindings'];
+const pathSegmentName = (value: string) => value !== '.' && value !== '..' && !/[/%\x00-\x1f\x7f]/.test(value);
+const objectName = (pattern: RegExp) => (value: { kind: string; name: string }) => rbacKinds.includes(value.kind) ? pathSegmentName(value.name) : pattern.test(value.name);
+const target = scope.extend({ name: z.string().min(1).max(253) }).refine(objectName(namePattern), { message: 'Invalid resource name.', path: ['name'] });
 const actionTarget = target.extend({ uid: text, resourceVersion: text });
-const nodeAction = actionTarget.extend({ kind: z.literal('nodes') });
-const deploymentAction = actionTarget.extend({ kind: z.literal('deployments'), namespace: name });
-const cronjobAction = actionTarget.extend({ kind: z.literal('cronjobs'), namespace: name });
+const nodeAction = actionTarget.safeExtend({ kind: z.literal('nodes') });
+const deploymentAction = actionTarget.safeExtend({ kind: z.literal('deployments'), namespace: name });
+const cronjobAction = actionTarget.safeExtend({ kind: z.literal('cronjobs'), namespace: name });
 const helmName = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(53);
 const namespace = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(63);
 const chart = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/).max(253);
@@ -56,13 +62,13 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'security:copy-install': z.undefined(),
   'security:reports': z.object({ clusterId: text, namespace: namespace.optional() }).strict(),
   'security:detail': z.object({ clusterId: text, namespace: namespace.optional(), type: z.enum(securityTypes), name, uid: text }).strict().refine(v => clusterSecurityType(v.type) ? !v.namespace : !!v.namespace, 'Match the report namespace scope.'),
-  'nodes:drain-preview': target.extend({ kind: z.literal('nodes') }),
+  'nodes:drain-preview': target.safeExtend({ kind: z.literal('nodes') }),
   'nodes:drain': nodeAction.extend({ options: z.object({ ignoreDaemonSets: z.boolean(), deleteEmptyDirData: z.boolean(), force: z.boolean(), timeoutSeconds: z.number().int().min(30).max(1800) }).strict() }),
-  'deployments:revisions': target.extend({ kind: z.literal('deployments'), namespace: name }),
+  'deployments:revisions': target.safeExtend({ kind: z.literal('deployments'), namespace: name }),
   'deployments:rollback': deploymentAction.extend({ revision: z.number().int().positive().max(1000000000), replicaSetUid: text }),
   'cronjobs:trigger': cronjobAction.extend({ jobName: z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).max(63) }),
   'cronjobs:suspend': cronjobAction.extend({ suspend: z.boolean() }),
-  'resources:edit': actionTarget.extend({ kind: z.enum(['configmaps', 'deployments', 'statefulsets', 'daemonsets', 'replicasets', 'replicationcontrollers', 'services', 'cronjobs']), namespace: name, changes: resourceEditSchema, dryRun: z.boolean() }),
+  'resources:edit': actionTarget.safeExtend({ kind: z.enum(['configmaps', 'deployments', 'statefulsets', 'daemonsets', 'replicasets', 'replicationcontrollers', 'services', 'cronjobs']), namespace: name, changes: resourceEditSchema, dryRun: z.boolean() }),
   'helm:repositories': z.undefined(),
   'helm:repository-save': z.object({ repository: z.object({ name: helmName, url: z.string().max(2048).refine(v => publicUrl(v)) }), remove: z.boolean() }),
   'helm:charts': z.object({ repository: helmName, refresh: z.boolean().optional() }),
@@ -90,7 +96,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'nodes:cordon': z.object({ clusterId: text, name, unschedulable: z.boolean() }),
   'clusters:list': z.undefined(), 'clusters:health': z.object({ clusterId: text }),
   'metrics:resource': target.extend({ uid: text, container: name.optional(), minutes: z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]) }),
-  'resources:get': scope.extend({ name: z.string().min(1).max(253).regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/) }), 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
+  'resources:get': scope.extend({ name: z.string().min(1).max(253) }).refine(objectName(/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/), { message: 'Invalid resource name.', path: ['name'] }), 'resources:list': scope, 'resources:watch': scope.extend({ id }), 'resources:yaml': target,
   'resources:replace': target.extend({ yaml: z.string().min(1).max(2_000_000) }),
   'resources:delete': target, 'resources:restart': target,
   'logs:start': z.object({ id, clusterId: text, namespace: name, pod: name, container: name.optional(), tailLines: z.number().int().min(1).max(10000).optional(), previous: z.boolean().optional(), sinceTime: z.string().max(40).regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/).refine(v => Number.isFinite(Date.parse(v))).optional() }),
