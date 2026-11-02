@@ -417,3 +417,8 @@
 .diff-number{color:#5f6871;text-align:right;padding-right:6px;user-select:none}
 .diff-marker{user-select:none;text-align:center}
 .diff-skip{padding:2px 12px;color:#717b85;font-size:11px;background:#1c1f22;border-block:1px solid #2b2f33}
+.mcp-access{display:grid;grid-template-columns:110px 1fr;gap:8px 12px;font-size:12px;margin:0}
+.mcp-access dt{color:#8c98a5}
+.mcp-access dd{margin:0;overflow-wrap:anywhere}
+.mcp-access-actions{display:flex;gap:8px}
+.mcp-config{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;font:12px/1.6 Consolas,monospace;background:#222528;color:#b6cbd9;padding:10px 12px;border-radius:3px;margin:0}

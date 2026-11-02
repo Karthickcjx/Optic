@@ -81,6 +81,7 @@ export const schemas: Record<keyof Requests, z.ZodType> = {
   'helm:uninstall': helmTarget,
   'settings:get': z.object({ clusterId: text }), 'settings:save': z.object({ clusterId: text, settings: clusterSettingsSchema }),
   'settings:directory': z.undefined(), 'settings:reveal': z.object({ clusterId: text }),
+  'mcp:access': z.object({ clusterId: text }), 'mcp:access-set': z.object({ clusterId: text, approved: z.boolean() }),
   'clusters:connect': z.object({ clusterId: text }), 'clusters:disconnect': z.object({ clusterId: text }),
   'cost:report': z.object({ clusterId: text, start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), group: z.enum(['namespace', 'node', 'controller']), includeIdle: z.boolean(), forceRefresh: z.boolean().optional() }).refine(v => v.start < v.end && v.end - v.start <= 31 * 86400000 && v.end <= Date.now() + 60000, 'Choose a past range up to 31 days.'),
   'cost:read': z.object({ clusterId: text }), 'monitoring:status': z.object({ clusterId: text }),

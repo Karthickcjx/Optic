@@ -1,6 +1,6 @@
 import { _electron as electron, expect } from '@playwright/test';
 import { createServer } from 'node:http';
-import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join, sep } from 'node:path';
 import assert from 'node:assert/strict';
@@ -348,7 +348,7 @@ try {
   await expect(page.getByRole('status')).toContainText('v1.34.0-test');
   await capture('20-cluster-general-settings');
   const settingsNav = page.getByRole('navigation', { name: 'Cluster settings sections' });
-  for (const name of ['General','Proxy','Terminal','Namespaces','Metrics','Monitoring Stack','Cost','Node Shell']) await expect(settingsNav.getByRole('button', { name, exact: true })).toBeVisible();
+  for (const name of ['General','Proxy','Terminal','Namespaces','Metrics','Monitoring Stack','Cost','Node Shell','AI Access']) await expect(settingsNav.getByRole('button', { name, exact: true })).toBeVisible();
   if (captureDir) {
     for (const section of ['Proxy', 'Terminal', 'Namespaces', 'Metrics', 'Monitoring Stack', 'Cost', 'Node Shell']) {
       await settingsNav.getByRole('button', { name: section, exact: true }).click();
@@ -372,6 +372,19 @@ try {
   await page.getByLabel('Metrics source', { exact: true }).selectOption('metrics-server');
   await page.getByRole('button', { name: 'Save settings', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Settings saved');
+  // AI Access: approve then revoke this context for the read-only MCP server; approvals hold identities, never credentials.
+  await settingsNav.getByRole('button', { name: 'AI Access', exact: true }).click();
+  const aiStatus = page.locator('.mcp-access [role=status]');
+  await expect(aiStatus).toHaveText('Not approved');
+  await expect(page.locator('.mcp-config').first()).toContainText('--mcp');
+  await page.getByRole('button', { name: 'Approve AI access…', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Approve AI access', exact: true }).getByRole('button', { name: 'Approve', exact: true }).click();
+  await expect(aiStatus).toContainText('Approved'); await capture('21b-settings-ai-access');
+  const approvals = JSON.parse(await readFile(join(temp, 'profile', 'mcp-access.json'), 'utf8'));
+  assert.deepEqual(Object.values(approvals.clusters).map(a => a.context), ['local-test']); assert.doesNotMatch(JSON.stringify(approvals), /token|BEGIN|password/i);
+  await page.getByRole('button', { name: 'Revoke access', exact: true }).click();
+  await expect(aiStatus).toHaveText('Not approved');
+  assert.deepEqual(JSON.parse(await readFile(join(temp, 'profile', 'mcp-access.json'), 'utf8')).clusters, {});
   await page.screenshot({ path: 'artifacts/cluster-settings.png' });
   await settingsNav.getByRole('button', { name: 'Cost', exact: true }).click();
   await page.getByLabel('Cost source', { exact: true }).selectOption('estimate');

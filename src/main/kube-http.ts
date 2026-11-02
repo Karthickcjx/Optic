@@ -27,3 +27,16 @@ export async function kubeJson<T = any>(config: KubeConfig, path: string, option
   if (!response.ok) throw await kubeFailure(response, 'Kubernetes request failed');
   return await response.json() as T;
 }
+// GET a plain-text endpoint (pod logs), reading at most maxBytes and reporting whether the body was cut off.
+export async function kubeText(config: KubeConfig, path: string, maxBytes: number, signal?: AbortSignal) {
+  const url = config.getCurrentCluster()!.server.replace(/\/$/, '') + path;
+  const context = new RequestContext(url, HttpMethod.GET);
+  await config.applySecurityAuthentication(context);
+  const response = await fetch(url, { headers: { ...context.getHeaders(), Accept: 'text/plain, application/json' }, dispatcher: context.getDispatcher(), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
+  if (!response.ok || !response.body) throw await kubeFailure(response, 'Kubernetes request failed');
+  const reader = response.body.getReader(), chunks: Uint8Array[] = []; let size = 0, truncated = false;
+  try {
+    for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); size += value.byteLength; if (size > maxBytes) { truncated = true; break; } }
+  } finally { await reader.cancel().catch(() => {}); }
+  return { text: new TextDecoder().decode(Buffer.concat(chunks).subarray(0, maxBytes)), truncated };
+}

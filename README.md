@@ -250,3 +250,44 @@ Open **Applications → Import and deploy**, use **Import files / chart** in the
 Apply closes the dialog and reports background progress and per-resource results. Manifest batches stop on the first error and retain successful changes. They can also be stopped between resources. Helm waits up to five minutes for readiness; keep Optic open. After an interrupted process, inspect actual cluster/release state before retrying.
 
 Reviews expire after ten minutes. Changes to inputs or kubeconfig require another review. Manifests are limited to 200 input files, 500 resources and 20 MiB total. Charts are limited to 2,000 files / 100 MiB expanded and 20 MiB compressed. Secret payloads are redacted in previews, but arbitrary ConfigMaps and values can still contain sensitive configuration.
+
+## AI clients (MCP server)
+
+Optic includes a standalone, read-only [Model Context Protocol](https://modelcontextprotocol.io) server, so MCP-compatible AI clients such as Claude Code can inspect your clusters. The server runs without the Optic window, communicates over stdio only (no network listener), sends only `GET` requests, and works within your Kubernetes RBAC.
+
+1. **Approve a cluster.** Open **Cluster settings → AI Access** for the context and choose **Approve AI access…**. The dialog shows any credential command (for example `aws eks get-token`) that the server will run. Nothing is visible to AI clients until you approve it; **Revoke access** takes effect immediately.
+2. **Connect your client.** The AI Access page shows the exact command for your installation. For Claude Code:
+
+   ```bash
+   claude mcp add optic-kubernetes -- "<path to Optic executable>" --mcp
+   ```
+
+   Other stdio MCP clients use the same command in their JSON configuration: `{ "mcpServers": { "optic-kubernetes": { "command": "<path to Optic executable>", "args": ["--mcp"] } } }`.
+3. **Use it.** Ask the client to call `list_clusters`, then pass a cluster's id or context name to the other tools.
+
+Tools: `list_clusters`, `get_cluster_info`, `list_namespaces`, `get_namespace_details`, `list_pods`, `get_pod_details`, `get_pod_logs`, `list_deployments`, `get_deployment_details`, `list_services`, `get_service_details`, `list_events`, `get_resource_events`, `list_nodes`, `get_node_details`, `discover_api_resources` and `get_resource_yaml`. Lists are paginated, requests time out after 20 seconds, and output is size-limited.
+
+Security:
+
+- There are no write, exec, port-forward or proxy tools.
+- Secret values are never returned; only their key names are.
+- Values that look like credentials are redacted on a best-effort basis: passwords, tokens, JWTs and private keys in fields, environment variables, logs and events.
+- Kubeconfig contents and server addresses are never sent to the client.
+- Approvals are stored in `mcp-access.json` in the application profile, and contain context identities only, never credentials.
+- An approval is tied to the context's server, certificate authority and credential command. If any of these changes, access is suspended until you approve again, and a changed credential command is never run.
+
+Command line (macOS, Linux and development builds; the packaged Windows app has no console, so use the AI Access page there):
+
+- `optic --mcp --list` shows each context and its approval state.
+- `optic --mcp --allow <context>` approves a context. It requires an interactive terminal where you type the context name, so an agent running shell commands cannot approve itself.
+- `optic --mcp --revoke <context>` and `--revoke-all` remove approvals.
+
+Troubleshooting:
+
+- **`NOT_APPROVED`:** the context isn't approved. Approve it on the AI Access page.
+- **`APPROVAL_STALE`:** the kubeconfig changed. Review it and approve again.
+- **`FORBIDDEN`:** your Kubernetes identity lacks that permission.
+- **`TIMEOUT` or `UNREACHABLE`:** check your network or VPN.
+- **The client reports a failed server:** run the command from the AI Access page in a terminal; `Optic MCP server ready` on stderr means it started.
+
+Tested with the official MCP TypeScript SDK client and Claude Code; other clients have not been verified.

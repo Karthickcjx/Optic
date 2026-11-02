@@ -2,12 +2,13 @@ import { app, BrowserWindow, session } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { registerIpc } from './ipc';
+import { spawn } from 'node:child_process';
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const renderer = pathToFileURL(join(directory, '../renderer/index.html')).href;
 const devUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
 const trusted = (url: string) => devUrl ? new URL(url).origin === new URL(devUrl).origin : url.split('#')[0] === renderer;
-const streams = registerIpc(trusted);
+let streams: ReturnType<typeof registerIpc>;
 const workspaces = new Set<BrowserWindow>();
 function createWindow() {
   const window = new BrowserWindow({ width: 1440, height: 960, minWidth: 1000, minHeight: 680, backgroundColor: '#202224', title: 'Optic', show: false,
@@ -27,8 +28,17 @@ function createWindow() {
   window.once('ready-to-show', () => window.show());
   if (devUrl) void window.loadURL(devUrl); else void window.loadURL(renderer);
 }
-if (!app.requestSingleInstanceLock()) app.quit();
+const mcp = process.argv.indexOf('--mcp');
+if (mcp >= 0) {
+  // Headless read-only MCP server over stdio: no window, no renderer IPC, and no single-instance lock,
+  // so it runs alongside (or without) the desktop app. On Windows the GUI process's stdin ends immediately,
+  // so this executable re-runs itself in Node mode with the original stdio handles. See docs/MCP_SERVER.md.
+  app.dock?.hide();
+  const server = spawn(process.execPath, [join(directory, 'mcp.js'), ...process.argv.slice(mcp + 1)], { stdio: 'inherit', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', OPTIC_DATA_DIR: app.getPath('userData') } });
+  server.on('exit', code => app.exit(code ?? 1)); server.on('error', () => app.exit(1));
+} else if (!app.requestSingleInstanceLock()) app.quit();
 else {
+  streams = registerIpc(trusted);
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);

@@ -26,6 +26,7 @@ import { Streams } from '../streams';
 import { schemas } from '../validation';
 import { AppError, fault } from '../errors';
 import { ForwardService } from '../forward';
+import { accessPath, accessState, setAccess } from '../../mcp/access';
 
 export function registerIpc(isTrusted: (url: string) => boolean) {
   const eks = new EksDiscovery();
@@ -33,6 +34,8 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
   void app.whenReady().then(() => extensions.start());
   app.on('before-quit', () => extensions.close());
   const clusters = new ClusterManager(undefined, join(app.getPath('userData'), 'kubeconfig-sources.json')); const resources = new ResourceService(clusters);
+  // MCP approvals live beside the imported-kubeconfig list; they hold context identities only, never credentials.
+  const mcpAccessFile = accessPath(app.getPath('userData')), mcpLaunch = { command: process.execPath, args: app.isPackaged ? ['--mcp'] : [app.getAppPath(), '--mcp'] };
   const securityReports = new SecurityReports(clusters);
   const costReports = new CostReports(clusters);
   const overviewMetrics = new OverviewMetrics(clusters);
@@ -110,6 +113,8 @@ export function registerIpc(isTrusted: (url: string) => boolean) {
     'settings:save': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before changing settings.'); const result = clusters.saveSettings(input.clusterId, input.settings); streams.closeCluster(input.clusterId); return result; },
     'settings:directory': async () => { const result = await dialog.showOpenDialog({ title: 'Terminal working directory', properties: ['openDirectory'] }); return result.canceled ? undefined : result.filePaths[0]; },
     'settings:reveal': input => shell.showItemInFolder(clusters.get(input.clusterId, true).cluster.source),
+    'mcp:access': input => accessState(input.clusterId, clusters.get(input.clusterId, true).config, mcpAccessFile, mcpLaunch),
+    'mcp:access-set': input => { const { cluster, config } = clusters.get(input.clusterId, true); setAccess(input.clusterId, cluster, config, input.approved, mcpAccessFile); return accessState(input.clusterId, config, mcpAccessFile, mcpLaunch); },
     'clusters:connect': input => clusters.connect(input.clusterId),
     'clusters:disconnect': input => { if (operationBusy(input.clusterId)) throw new AppError('BUSY', 'Wait for the active operation before disconnecting.'); clusters.disconnect(input.clusterId); streams.closeCluster(input.clusterId); },
     'cost:report': input => costReports.read(input),
