@@ -5,7 +5,6 @@ coverage/
 *.log
 .env*
 artifacts/
-docs/
 resources/THIRD_PARTY_NOTICES.txt
 
 
