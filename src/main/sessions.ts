@@ -14,6 +14,7 @@ import type { ClusterManager } from './clusters';
 import type { Streams } from './streams';
 import type { Requests } from '../shared/protocol';
 import { AppError } from './errors';
+import { kubeFailure } from './kube-http';
 
 export class SessionService {
   constructor(private clusters: ClusterManager, private streams: Streams) {}
@@ -55,7 +56,7 @@ export class SessionService {
       let response;
       try { response = await fetch(url, { headers: context.getHeaders(), dispatcher: context.getDispatcher(), signal: controller.signal }); }
       finally { clearTimeout(timeout); }
-      if (!response.ok || !response.body) { await response.body?.cancel(); throw Object.assign(new Error('Log request failed'), { statusCode: response.status }); }
+      if (!response.ok || !response.body) throw await kubeFailure(response, 'Log request failed');
       void pipeline(Readable.fromWeb(response.body as any), output).catch(error => {
         if (!stopped) { this.streams.error(id, error); this.streams.end(id); }
       });
