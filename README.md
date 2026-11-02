@@ -34,7 +34,7 @@ npm run build
 npm start
 ```
 
-The app reads `~/.kube/config` and `KUBECONFIG`. Use the reload button after changing these files. Selecting a context does not change the original kubeconfig. For an isolated profile, set `WORKBENCH_KUBECONFIG` to an exclusive path list before launching.
+The app reads kubeconfigs the way kubectl does: the files listed in `KUBECONFIG` (merged in order: the first file to define a cluster, user or context name, or `current-context`, wins, and relative certificate, key, token and exec paths resolve against the file that declares them), or `~/.kube/config` when `KUBECONFIG` is unset. Kubeconfigs imported into Optic are kept separate. Use the reload button after changing these files. Selecting a context does not change the original kubeconfig. For an isolated profile, set `WORKBENCH_KUBECONFIG` to an exclusive path list before launching.
 
 Select a resource to open its details. Pod container cards open logs or a shell. Workload details offer rollout restart and scaling where supported; Node details offer cordon/uncordon. Delete, YAML save and restart show confirmation before changing the cluster. Local terminals are available even without a kubeconfig. Container shells are configurable; the selected executable must exist in the container.
 

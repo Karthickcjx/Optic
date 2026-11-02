@@ -5,9 +5,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, statSync, realpathSync, mkdtempSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { parseDocument, isSeq } from 'yaml';
-import { homedir, tmpdir } from 'node:os';
-import { delimiter, resolve, dirname, join, isAbsolute } from 'node:path';
+import { tmpdir } from 'node:os';
+import { resolve, dirname, join, isAbsolute } from 'node:path';
 import { kubeJson } from './kube-http';
+import { kubeconfigChain, mergeKubeconfigs } from './kubeconfig-merge';
 import type { Cluster } from '../shared/protocol';
 import { AppError } from './errors';
 
@@ -54,23 +55,22 @@ export class ClusterManager {
   discover() {
     const next = new Map<string, { cluster: Cluster; config: KubeConfig; baseProxy?: string }>();
     const warnings: string[] = [];
-    const paths = [...new Set(this.paths ?? (process.env.WORKBENCH_KUBECONFIG ? process.env.WORKBENCH_KUBECONFIG.split(delimiter).filter(Boolean).map(p => resolve(p)) : [resolve(homedir(), '.kube/config'), ...(process.env.KUBECONFIG?.split(delimiter).filter(Boolean) ?? []).map(p => resolve(p))]))];
-    for (const path of [...new Set([...paths, ...this.imported])]) {
-      if (!existsSync(path)) continue;
-      try {
-        const source = readFileSync(path, 'utf8');
-        if (Buffer.byteLength(source) > 8_000_000) throw new Error('Too large');
-        const parsed = new KubeConfig(); parsed.loadFromString(source);
-        for (const context of parsed.getContexts()) {
-          const cluster = parsed.getCluster(context.cluster);
-          if (!cluster || !/^https?:\/\//.test(cluster.server)) { warnings.push(`Invalid cluster in context ${context.name}`); continue; }
-          // loadFromFile resolves relative certificate/key paths without modifying the user's file.
-          const config = new KubeConfig(); config.loadFromFile(path); config.setCurrentContext(context.name);
-          const id = createHash('sha256').update(`${path}\0${context.name}`).digest('hex').slice(0, 24);
-          next.set(id, { baseProxy: config.getCurrentCluster()?.proxyUrl, cluster: { id, name: context.name, server: cluster.server, source: path, namespace: context.namespace ?? 'default', connected: !this.disconnected.has(id) }, config });
-        }
-      } catch { warnings.push(`Could not load kubeconfig: ${path}`); }
-    }
+    // The KUBECONFIG chain (or ~/.kube/config) is merged as kubectl does; kubeconfigs imported into Optic stay isolated.
+    // Each file is parsed once. IDs remain sha256(defining file, context name), so settings and approvals keep applying.
+    const chain = this.paths ?? kubeconfigChain();
+    const add = (merged: ReturnType<typeof mergeKubeconfigs>) => {
+      warnings.push(...merged.warnings);
+      for (const { name, file, context, cluster, user } of merged.contexts) {
+        if (!cluster || !/^https?:\/\//.test(cluster.server)) { warnings.push(`Invalid cluster in context ${name}`); continue; }
+        if (context.user && !user) warnings.push(`Context ${name} references a missing user; it connects without credentials.`);
+        const id = createHash('sha256').update(`${file}\0${name}`).digest('hex').slice(0, 24);
+        if (next.has(id)) continue;
+        const config = new KubeConfig(); config.loadFromOptions({ clusters: [cluster], users: user ? [user] : [], contexts: [context], currentContext: name });
+        next.set(id, { baseProxy: cluster.proxyUrl, cluster: { id, name, server: cluster.server, source: file, namespace: context.namespace ?? 'default', connected: !this.disconnected.has(id) }, config });
+      }
+    };
+    add(mergeKubeconfigs(chain));
+    for (const path of this.imported) if (!chain.includes(resolve(path))) add(mergeKubeconfigs([path]));
     this.entries = next;
     return { clusters: [...next.values()].map(e => e.cluster), warnings };
   }
