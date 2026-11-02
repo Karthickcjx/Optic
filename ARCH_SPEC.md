@@ -51,9 +51,9 @@ Subscription procedure:
 1. Register a unique stream ID with its owning renderer before starting asynchronous work.
 2. LIST the selected scope and keep its resourceVersion.
 3. Populate a UID-keyed cache and emit a snapshot.
-4. WATCH from that version; apply ADDED/MODIFIED/DELETED and ignore bookmarks for presentation.
+4. WATCH from that version with a 25-second server timeout (below the client's 30-second inactivity limit); apply ADDED/MODIFIED/DELETED, and track the latest resourceVersion from events and bookmarks.
 5. Coalesce presentation snapshots to at most one per 100 ms.
-6. On disconnect or ERROR (including expired versions), retry with bounded exponential backoff/jitter and relist. Preserve the previous displayed snapshot until a successful relist.
+6. On a normal server close, re-watch from the latest resourceVersion without a LIST. On disconnect or a non-410 ERROR, re-watch from that version with bounded exponential backoff/jitter (reset once connected). Relist only when the version has expired (410 Gone). LIST failures are reported immediately; a single dropped watch reconnects silently, and repeated failures are reported until a reconnect republishes the snapshot. Preserve the previous displayed snapshot throughout.
 7. On scope change, tab cleanup, navigation, renderer death or application quit, abort the stream and dispose timers/cache.
 
 Caches are per subscription in this release; they are not yet shared across identical scopes. Paginated list requests are cancelled on disposal and have bounded HTTP timeouts. Disposal prevents late results from opening watches or updating the UI. Namespace RBAC failure is displayed independently of namespaced resource access. Users can reload configuration and retry after credentials change.

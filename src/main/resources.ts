@@ -75,29 +75,52 @@ export class ResourceService {
     let stopped = false, controller: AbortController | undefined, timer: NodeJS.Timeout | undefined;
     const lifetime = new AbortController(); let backoff = 1000;
     const cache = new Map<string, Resource>(); let publishTimer: NodeJS.Timeout | undefined;
+    // Resume point for re-watching without a LIST; cleared when the server reports it expired (410 Gone).
+    let resolved: Scope | undefined, version: string | undefined, generation = 0, failures = 0, reported = false;
     const publish = () => { if (!publishTimer) publishTimer = setTimeout(() => { publishTimer = undefined; if (!stopped) onItems([...cache.values()]); }, 100); };
-    const retry = (error?: unknown) => {
+    const schedule = (delay: number) => { if (!stopped && !timer) timer = setTimeout(() => { timer = undefined; void start(); }, delay); };
+    const fail = (error: unknown, listing: boolean) => {
       if (stopped || timer) return;
-      if (error) onError(error);
-      timer = setTimeout(() => { timer = undefined; void start(); }, backoff + Math.random() * 500);
+      // One dropped watch is routine and resumes silently; LIST failures and repeated watch failures are reported.
+      if (listing || ++failures > 1) { reported = true; onError(error); }
+      schedule(backoff + Math.random() * 500);
       backoff = Math.min(30000, backoff * 2);
     };
+    const expire = () => { version = undefined; schedule(0); };
     const start = async () => {
+      const current = ++generation; controller?.abort(); controller = undefined;
+      let listing = !version;
       try {
-        const resolved = await this.resolveScope(scope);
-        if (stopped) return;
-        const initial = await this.listVersioned(resolved, lifetime.signal);
-        if (stopped) return;
-        cache.clear(); initial.items.forEach(item => cache.set(item.metadata.uid ?? `${item.metadata.namespace}/${item.metadata.name}`, item)); publish();
-        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(resolved), { resourceVersion: initial.version, allowWatchBookmarks: true, timeoutSeconds: 240 }, (type, object) => {
+        if (!version) {
+          resolved = await this.resolveScope(scope);
           if (stopped) return;
-          if (type === 'ERROR') { controller?.abort(); retry(new Error('Watch expired')); return; }
+          const initial = await this.listVersioned(resolved, lifetime.signal);
+          if (stopped) return;
+          cache.clear(); initial.items.forEach(item => cache.set(item.metadata.uid ?? `${item.metadata.namespace}/${item.metadata.name}`, item)); publish();
+          version = initial.version; reported = false;
+        }
+        listing = false;
+        const watched = resolved!, opened = Date.now(); let ended = false;
+        // The client aborts a watch after 30 s without data; a shorter server timeout ends quiet watches normally first.
+        const pending = await new Watch(this.config(scope.clusterId)).watch(resourcePath(watched), { resourceVersion: version, allowWatchBookmarks: true, timeoutSeconds: 25 }, (type, object) => {
+          if (stopped || current !== generation) return;
+          if (type === 'ERROR') { if (object?.code === 410) expire(); else fail(Object.assign(new Error('Watch failed'), { statusCode: object?.code }), false); return; }
+          if (object?.metadata?.resourceVersion) version = object.metadata.resourceVersion;
           if (type === 'BOOKMARK') return;
-          backoff = 1000; const key = object.metadata?.uid ?? `${object.metadata?.namespace}/${object.metadata?.name}`;
-          if (type === 'DELETED') cache.delete(key); else if (type === 'ADDED' || type === 'MODIFIED') cache.set(key, this.normalize(resolved, object)); publish();
-        }, error => retry(error));
-        if (stopped) pending.abort(); else controller = pending;
-      } catch (error) { retry(error); }
+          const key = object.metadata?.uid ?? `${object.metadata?.namespace}/${object.metadata?.name}`;
+          if (type === 'DELETED') cache.delete(key); else if (type === 'ADDED' || type === 'MODIFIED') cache.set(key, this.normalize(watched, object)); publish();
+        }, error => {
+          ended = true;
+          if (stopped || current !== generation) return;
+          if ((error as { statusCode?: number } | null)?.statusCode === 410) expire();
+          else if (error) fail(error, false);
+          else schedule(Date.now() - opened < 5000 ? 1000 : 0); // Normal server close: resume from the last version.
+        });
+        if (stopped || current !== generation) { pending.abort(); return; }
+        controller = pending;
+        // Connected: reset backoff, and replace any reported error with the current snapshot.
+        if (!ended) { backoff = 1000; failures = 0; if (reported) { reported = false; publish(); } }
+      } catch (error) { if (current === generation) fail(error, listing); }
     };
     void start();
     return () => { stopped = true; lifetime.abort(); clearTimeout(timer); clearTimeout(publishTimer); controller?.abort(); cache.clear(); };
