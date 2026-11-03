@@ -54,13 +54,17 @@ try {
   app = await electron.launch({ args: ['.', `--user-data-dir=${join(temp, 'profile')}`], env });
   // Record external links instead of opening a browser.
   await app.evaluate(({ shell }) => { globalThis.__opened = []; shell.openExternal = async url => { globalThis.__opened.push(url); }; });
-  const page = await app.firstWindow(); page.setDefaultTimeout(15000); const errors = []; page.on('pageerror', e => errors.push(e.message));
+  // A fixed, CI-sized window keeps layout-dependent clicks the same on every machine.
+  const page = await app.firstWindow();
+  await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.unmaximize(); w.setSize(1024, 768); }); page.setDefaultTimeout(15000); const errors = []; page.on('pageerror', e => errors.push(e.message));
   const capture = async name => { if (process.env.OPTIC_SCREENSHOT_DIR) await page.screenshot({ path: join(process.env.OPTIC_SCREENSHOT_DIR, `gitops-${name}.png`) }); };
   const open = async (context, label) => { const tree = page.locator('.cluster-tree').filter({ has: page.getByText(context, { exact: true }) }); await tree.getByRole('button', { name: label, exact: true }).click(); };
   const argoTab = name => page.getByRole('tablist', { name: 'Argo CD sections' }).getByRole('tab', { name, exact: true });
   const fluxTab = name => page.getByRole('tablist', { name: 'Flux sections' }).getByRole('tab', { name, exact: true });
   const counters = page.getByLabel('Application status counters'), drawer = page.locator('.gitops-details');
   const table = page.locator('.gitops-page .gitops-table').first(), rowOf = name => page.locator('.gitops-page .gitops-table tbody tr').filter({ has: page.getByRole('button', { name, exact: true }) });
+  // Click the name link, as a user would: a wide row's centre can sit under the open drawer on small screens.
+  const nameOf = name => rowOf(name).getByRole('button', { name, exact: true });
 
   // Navigator: GitOps group with Argo CD and Flux.
   await open('gitops', 'Argo CD');
@@ -99,7 +103,7 @@ try {
   await page.getByRole('button', { name: 'Health', exact: true }).click();
   await expect(page.locator('.gitops-page .gitops-table tbody tr').first()).toContainText('guestbook-manual');
   // Application details: all six tabs, with real data.
-  await rowOf('guestbook').click({ button: 'right' });
+  await nameOf('guestbook').click({ button: 'right' });
   await page.getByRole('menu').getByRole('menuitem', { name: 'Open details' }).click();
   await expect(drawer).toContainText('https://github.com/argoproj/argocd-example-apps.git'); await expect(drawer).toContainText('Automated');
   await drawer.getByRole('tab', { name: 'Resources' }).click(); await expect(drawer).toContainText('Deployment (1)'); await expect(drawer).toContainText('Service (1)');
@@ -119,12 +123,12 @@ try {
 
   // Projects and Application Sets.
   await argoTab('Projects').click();
-  await rowOf('team-a').click();
+  await nameOf('team-a').click();
   await expect(drawer).toContainText('Team A applications (restricted)'); await expect(drawer).toContainText('team-a-*'); await expect(drawer).toContainText('viewer');
   await drawer.getByRole('tab', { name: 'Permissions' }).click(); await expect(drawer).toContainText('core/Namespace'); await expect(drawer).toContainText('core/ResourceQuota');
   await drawer.getByRole('tab', { name: 'Applications' }).click(); await expect(drawer).toContainText('team-a-guestbook');
   await argoTab('Application Sets').click();
-  await rowOf('guestbook-envs').click();
+  await nameOf('guestbook-envs').click();
   await expect(drawer).toContainText('2 element(s)'); await expect(drawer).toContainText('guestbook-{{.env}}');
   await drawer.getByRole('tab', { name: 'Applications' }).click(); await expect(drawer).toContainText('guestbook-dev'); await expect(drawer).toContainText('guestbook-stage');
   await drawer.getByRole('tab', { name: 'Conditions' }).click(); await expect(drawer).toContainText('ResourcesUpToDate');
@@ -152,7 +156,7 @@ try {
   await expect(drawer).toContainText('kustomization path not found');
   await page.getByLabel('Status filter', { exact: true }).selectOption('failing'); await expect(page.locator('.gitops-page .gitops-table tbody tr')).toHaveCount(1);
   await page.getByLabel('Status filter', { exact: true }).selectOption('');
-  await rowOf('podinfo').click();
+  await nameOf('podinfo').click();
   await drawer.getByRole('tab', { name: 'Resources' }).click(); await expect(drawer).toContainText('Deployment'); await expect(drawer).toContainText('flux-demo/podinfo');
   await drawer.getByRole('tab', { name: 'History' }).click(); await expect(drawer).toContainText('ReconciliationSucceeded');
   await drawer.getByRole('tab', { name: 'Overview' }).click();
