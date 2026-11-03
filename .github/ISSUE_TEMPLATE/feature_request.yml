@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an improvement to Optic
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Please search existing issues first. Never include kubeconfigs, tokens or other credentials.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should Optic help? Include the Kubernetes resources or tools involved.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Resources and editing, Logs and terminals, Helm, GitOps (Argo CD / Flux), AI / MCP, Cost, Security Center, Cloud discovery, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

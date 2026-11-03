@@ -1,38 +1,58 @@
-# Optic 0.1.0-beta.2
+# Optic 0.9.0-beta.1
 
-Public beta of Optic, a Kubernetes desktop workspace.
+Public beta of Optic, a desktop workspace for Kubernetes. This release is for **Windows x64**.
 
-## Changes in this release
+> **Beta software.** Use Optic with clusters and credentials you are comfortable testing with. The installer is not code-signed yet, so Windows SmartScreen will show an "unknown publisher" warning. Verify the SHA-256 checksum before you install (see the [installation guide](https://github.com/Karthickcjx/Optic/blob/main/docs/INSTALLATION.md)).
 
-- AWS EKS discovery using local AWS CLI profiles, identity verification, and terminal-assisted SSO setup.
-- Cleaner AWS navigation without an automatic default-profile sidebar entry.
-- Security Center detects an absent Trivy Operator and hides retained reports until explicitly requested.
-- Isolated extensions, external CLI tools, and adaptive cost-provider views.
+## Highlights
 
-## Included
+**GitOps dashboards (read-only)**
+- **Argo CD:**
+  - Status counters for sync and health.
+  - Needs Attention: what is out of sync, degraded, missing or failing, and why.
+  - Recent Activity, built from Argo CD events and deployment history.
+  - Applications with filters and six detail tabs; Application Sets; Projects with their permissions.
+- **Flux:**
+  - An overview with Needs Attention.
+  - Kustomizations, Helm releases, and Git, Helm, OCI and Bucket sources, with their revisions, reconciliation times, conditions, applied resources and history.
+- **Read-only:** Optic never syncs or reconciles. **Open Argo CD UI** appears when your cluster publishes Argo CD's address.
 
-- Multiple kubeconfig imports from files or pasted YAML; cluster and namespace navigation.
-- Resource tables, details, YAML editing, related resources and confirmed workload actions.
-- Helm repositories, chart/release management and Import and Deploy workflows.
-- Pod logs, multi-pod logs, exports, local/container terminals and split panes.
-- Prometheus metrics, historical estimates and cost reports with explicit data coverage.
-- Security report browsing through supported Trivy Operator APIs.
+**AI clients (MCP server)**
+- `Optic.exe --mcp` is a read-only Model Context Protocol server, so AI assistants such as Claude Code can inspect the clusters you approve.
+- **Approval:** approve a cluster in **Cluster settings → AI Access**. The setting shows any credential command the server will run.
+- **Data protection:** Secret values are never returned, and other values that look like credentials are masked.
 
-## Requirements and limitations
+**Editing and applying**
+- **The YAML editor** shows a diff of your unsaved changes, can revert them, and validates them with the API server (a dry run) before you save.
+- **Create resource** reports server-side apply conflicts clearly, and you can explicitly override them after confirming.
+- **Multi-document and invalid YAML** get specific error messages.
+- **Unsaved changes are protected.** Escape and closing no longer discard them.
 
-- Windows x64 is the initial installer target. macOS and Linux require platform validation before binary publication.
-- A reachable Kubernetes API and suitable RBAC are required. Install `kubectl` for pod terminals and Helm for chart operations. Authentication plugins referenced by kubeconfig must also be installed.
-- Prometheus, kube-state-metrics and cAdvisor are required for historical estimates. Data before monitoring was installed cannot be reconstructed. Security reports require the operator and report CRDs.
-- Beta installers are unsigned. Organization application-control policies may prevent execution. No automatic updater is included.
-- Tests cover fixture-backed desktop workflows and selected live-cluster checks, not every Kubernetes distribution, chart or cloud provider. Back up important configuration and review mutations before applying.
-- Pricing is an estimate and excludes some charges. Imported credentials remain in your local profile; see SECURITY.md.
+**Kubernetes behavior**
+- **Kubeconfig loading follows kubectl's rules.** `KUBECONFIG` files are merged in order, and relative certificate, key and token paths resolve against the file that declares them.
+- **Clearer errors:** the explanation from the Kubernetes API server (RBAC, admission webhooks, waiting containers) is shown instead of a generic message.
+- **Watches** stay connected on quiet clusters and resume without re-listing.
+- **RBAC role names with colons** (`system:*`, `eks:*`) work.
 
-## Installation
+**Usability and performance**
+- **The command palette (Ctrl+K)** searches clusters, namespaces, pods, deployments, services, ConfigMaps, Secrets (by name), and Argo CD and Flux objects.
+- **Fewer re-renders.** Toggling the dock no longer re-renders resource tables, and a single resource update re-renders one row instead of the whole table.
+- **Navigator:** consistent text sizes, and collapsible section headings.
 
-Download the Windows x64 installer and SHA256SUMS.txt from the matching GitHub release. In PowerShell, run `Get-FileHash .\Optic-0.1.0-beta.2-win-x64.exe -Algorithm SHA256` and compare the result with the checksum file, then run the installer if permitted by your system policy.
+**Security hardening**
+- **Temporary session kubeconfigs** are created in Optic's private profile folder, and leftovers from crashes are cleaned up safely at startup.
+- **Context-removal backups** are stored in the profile folder, keeping the newest five per kubeconfig.
 
-To run from source, use Node.js 24, `npm ci`, then `npm run dev`. Source archives alone do not include dependencies or built binaries.
+## Known limitations
+See [Known limitations](https://github.com/Karthickcjx/Optic/blob/main/docs/KNOWN_LIMITATIONS.md). The main ones:
+- The installer is unsigned.
+- There are no automatic updates.
+- Imported kubeconfigs are not encrypted by Optic.
+- Kubeconfig exec plugins run without showing the command first.
+- Only Windows x64 builds are published.
 
-## Feedback
+## Upgrading
+Install over the previous version. Your settings and imported kubeconfigs are kept in `%APPDATA%\Optic`.
 
-Open a GitHub issue with your Optic version, OS, Kubernetes version and sanitized reproduction steps. Never attach an unredacted kubeconfig. For security issues, use SECURITY.md.
+## Checksums
+`SHA256SUMS.txt` is attached to the release. Verify the installer before you run it (see the [installation guide](https://github.com/Karthickcjx/Optic/blob/main/docs/INSTALLATION.md)).

@@ -1,8 +1,8 @@
 # Optic
 
-**Public beta: 0.1.0-beta.1.** A Kubernetes desktop workspace.
+**Public beta: 0.9.0-beta.1 (Windows x64).** A Kubernetes desktop workspace.
 
-See [release notes and installation requirements](RELEASE_NOTES.md), [security policy](SECURITY.md), and [downloads](https://github.com/Karthickcjx/Optic/releases). The initial installer targets Windows x64 and is unsigned. macOS/Linux binaries are not yet supported downloads.
+See [release notes](RELEASE_NOTES.md), [installation guide](docs/INSTALLATION.md), [known limitations](docs/KNOWN_LIMITATIONS.md), [troubleshooting](docs/TROUBLESHOOTING.md), [security policy](SECURITY.md), and [downloads](https://github.com/Karthickcjx/Optic/releases). The initial installer targets Windows x64 and is unsigned. macOS/Linux binaries are not yet supported downloads.
 
 ## Detailed cost accounting
 
