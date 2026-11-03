@@ -1,6 +1,6 @@
 {
   "name": "optic",
-  "version": "0.1.0-beta.2",
+  "version": "0.9.0-beta.1",
   "private": true,
   "description": "An independent Kubernetes desktop workbench",
   "license": "MIT",
@@ -56,7 +56,7 @@
     "vitest": "5.0.5"
   },
   "build": {
-    "appId": "org.clusterworkbench.desktop",
+    "appId": "io.github.karthickcjx.optic",
     "productName": "Optic",
     "npmRebuild": false,
     "files": [
