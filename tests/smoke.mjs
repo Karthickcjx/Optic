@@ -1,8 +1,8 @@
 import { _electron as electron, expect } from '@playwright/test';
 import { createServer } from 'node:http';
-import { mkdtemp, writeFile, mkdir, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, readFile, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { resolve, join, sep } from 'node:path';
+import { resolve, join, sep, dirname } from 'node:path';
 import assert from 'node:assert/strict';
 const temp = await mkdtemp(join(tmpdir(), 'workbench-smoke-'));
 const requests = [], sockets = new Set(), watchers = new Set();
@@ -437,8 +437,10 @@ try {
   await page.getByRole('menuitem', { name: 'Remove from Kubeconfig', exact: true }).click();
   await page.getByRole('button', { name: 'Remove context', exact: true }).click();
   await expect(page.locator('.backup-path')).toBeVisible();
-  // Backups go to Optic's private profile folder, not next to the user's kubeconfig.
-  assert.ok((await page.locator('.backup-path').textContent()).startsWith(join(temp, 'profile', 'kubeconfig-backups')));
+  // Backups go to Optic's private profile folder, not next to the user's kubeconfig. Compare real paths: macOS reports
+  // its temp folder through the /var -> /private/var symlink.
+  const backup = (await page.locator('.backup-path').textContent()).trim();
+  assert.equal(await realpath(dirname(backup)), await realpath(join(temp, 'profile', 'kubeconfig-backups')));
   await page.getByTitle('Close cluster settings').click();
   await expect(page.getByText('No contexts found.', { exact: false })).toBeVisible();
   await page.getByTitle('Add kubeconfig', { exact: true }).click();
